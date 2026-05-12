@@ -1,19 +1,23 @@
 model_list:
-  - model_name: qwen35_35b
+  - model_name: qwen32b
     litellm_params:
-      model: ollama_chat/qwen3.5:35b
+      model: ollama_chat/qwen3:32b
       api_base: ${OLLAMA_API_BASE}
 
-  - model_name: phi4
+  - model_name: deepseek_r1_32b
     litellm_params:
-      model: ollama_chat/phi4
+      model: ollama_chat/deepseek-r1:32b
       api_base: ${OLLAMA_API_BASE}
 
-  - model_name: qwen_coder_32b
+  - model_name: mistral_small
     litellm_params:
-      model: openai/qwen2.5-coder-32b
-      api_base: http://vllm-qwen-coder:8000/v1
-      api_key: ${VLLM_DUMMY_API_KEY}
+      model: ollama_chat/mistral-small
+      api_base: ${OLLAMA_API_BASE}
+
+  - model_name: mistral_abliterated_q8
+    litellm_params:
+      model: ollama_chat/hf.co/mradermacher/Mistral-Small-24B-Instruct-2501-abliterated-GGUF:Q8_0
+      api_base: ${OLLAMA_API_BASE}
 
 general_settings:
   master_key: ${LITELLM_MASTER_KEY}
