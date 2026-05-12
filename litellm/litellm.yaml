@@ -1,0 +1,26 @@
+model_list:
+  - model_name: qwen35_35b
+    litellm_params:
+      model: ollama_chat/qwen3.5:35b
+      api_base: ${OLLAMA_API_BASE}
+
+  - model_name: phi4
+    litellm_params:
+      model: ollama_chat/phi4
+      api_base: ${OLLAMA_API_BASE}
+
+  - model_name: qwen_coder_32b
+    litellm_params:
+      model: openai/qwen2.5-coder-32b
+      api_base: http://vllm-qwen-coder:8000/v1
+      api_key: ${VLLM_DUMMY_API_KEY}
+
+general_settings:
+  master_key: ${LITELLM_MASTER_KEY}
+  disable_spend_logs: true
+  health_check_interval: 300
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 180
