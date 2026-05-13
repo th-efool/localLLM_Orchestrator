@@ -1,0 +1,35 @@
+api:
+  dashboard: false
+ping: {}
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        readTimeout: ${TRAEFIK_READ_TIMEOUT:-30s}
+        writeTimeout: ${TRAEFIK_WRITE_TIMEOUT:-120s}
+        idleTimeout: ${TRAEFIK_IDLE_TIMEOUT:-120s}
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+log:
+  level: INFO
+  format: json
+  filePath: /var/log/traefik/runtime.log
+accessLog:
+  format: json
+  filePath: /var/log/traefik/access.log
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: ${ACME_EMAIL:-admin@localhost}
+      storage: /acme/acme.json
+      httpChallenge:
+        entryPoint: web

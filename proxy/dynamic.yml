@@ -1,0 +1,62 @@
+http:
+  routers:
+    litellm:
+      rule: "Host(`${DOMAIN_NAME}`) && (PathPrefix(`/v1`) || PathPrefix(`/key`) || PathPrefix(`/model`) || PathPrefix(`/health`))"
+      service: litellm
+      entryPoints: [websecure]
+      middlewares: [secure-headers, litellm-rate-limit, request-size, inflight-litellm]
+      tls:
+        certResolver: letsencrypt
+    webui:
+      rule: "Host(`${DOMAIN_NAME}`)"
+      service: webui
+      entryPoints: [websecure]
+      middlewares: [secure-headers, webui-rate-limit, request-size, inflight-webui]
+      tls:
+        certResolver: letsencrypt
+    tailscale-litellm:
+      rule: "Host(`${TAILSCALE_DOMAIN}`)"
+      service: litellm
+      entryPoints: [websecure]
+      middlewares: [secure-headers, litellm-rate-limit, request-size, inflight-litellm]
+      tls:
+        certResolver: letsencrypt
+  services:
+    litellm:
+      loadBalancer:
+        servers: [{url: "http://litellm:4000"}]
+        healthCheck:
+          path: /health/readiness
+          interval: 15s
+          timeout: 5s
+    webui:
+      loadBalancer:
+        servers: [{url: "http://open-webui:8080"}]
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s
+  middlewares:
+    secure-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: no-referrer
+    request-size:
+      buffering:
+        maxRequestBodyBytes: ${TRAEFIK_MAX_REQUEST_BODY_BYTES:-20971520}
+        memRequestBodyBytes: 1048576
+    litellm-rate-limit:
+      rateLimit:
+        average: ${TRAEFIK_RL_AVG:-60}
+        burst: ${TRAEFIK_RL_BURST:-120}
+    webui-rate-limit:
+      rateLimit:
+        average: ${TRAEFIK_RL_WEBUI_AVG:-80}
+        burst: ${TRAEFIK_RL_WEBUI_BURST:-160}
+    inflight-litellm:
+      inFlightReq:
+        amount: ${TRAEFIK_LITELLM_INFLIGHT:-80}
+    inflight-webui:
+      inFlightReq:
+        amount: ${TRAEFIK_WEBUI_INFLIGHT:-120}
