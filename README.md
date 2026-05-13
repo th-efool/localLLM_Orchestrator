@@ -12,28 +12,40 @@ For workstation-scale deployments with large local model stores, host-native Oll
 - Open WebUI (container exposed): `http://localhost:3000`
 - vLLM OpenAI endpoint (optional profile): `http://localhost:8001/v1`
 
-## Environment
-1. `cp .env.example .env`
-2. Set `LITELLM_MASTER_KEY` and `LITELLM_SALT_KEY`
-3. Ensure `.env` contains:
-   - `OLLAMA_API_BASE=http://host.docker.internal:11434`
+## Clean clone startup
+```bash
+cp .env.example .env
+make up
+make verify
+```
+
+`.env.example` contains runnable workstation defaults, including:
+- `POSTGRES_USER=localai`
+- `POSTGRES_PASSWORD=localai_password`
+- `POSTGRES_DB=litellm`
+- `OLLAMA_API_BASE=http://host.docker.internal:11434`
+
+Host Ollama must already be running on `http://localhost:11434`; no containerized Ollama is used.
 
 ## Startup
 ```bash
-make up          # Ollama + LiteLLM + Open WebUI
+make verify-env  # env, compose interpolation, URLs, Ollama reachability
+make up          # LiteLLM + Open WebUI + Postgres + Redis + Traefik
 make up-vllm     # add GPU vLLM profile and unified LiteLLM routing
 make health
+make diagnose     # forensic runtime diagnostics
 ```
 
 ## Operations
 ```bash
 make logs
+make diagnose
 make down
 ```
 
 ## Validation checklist
 ```bash
-docker compose config
+docker compose --env-file .env config
 curl -fsS http://localhost:11434/api/tags
 curl -fsS http://localhost:4000/health/readiness
 curl -fsS http://localhost:3000/health

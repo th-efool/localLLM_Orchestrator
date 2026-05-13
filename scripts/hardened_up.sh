@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMPOSE=${COMPOSE:-docker compose}
-
+# shellcheck source=env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
+load_env
 mkdir -p data/{postgres,traefik/acme,prometheus,grafana} logs/traefik
 
 $COMPOSE config >/dev/null

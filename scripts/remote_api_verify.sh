@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
+load_env
+
 BASE_URL="${1:-http://127.0.0.1:4000/v1}"
 API_KEY="${2:-${OPENAI_API_KEY:-}}"
 MODEL="${3:-qwen32b}"

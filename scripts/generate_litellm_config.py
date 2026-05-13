@@ -11,6 +11,7 @@ OLLAMA = os.getenv("OLLAMA_API_BASE", "http://host.docker.internal:11434").rstri
 VLLM = os.getenv("VLLM_API_BASE", "").rstrip("/")
 VLLM_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
 MASTER_KEY = os.getenv("LITELLM_MASTER_KEY", "")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 RETRIES = int(os.getenv("MODEL_DISCOVERY_RETRIES", "20"))
 SLEEP = float(os.getenv("MODEL_DISCOVERY_SLEEP", "2"))
 
@@ -33,6 +34,40 @@ def fetch_json(url, headers=None, required=False):
     print(f"[litellm-config] optional discovery skipped: {url}: {last}", file=sys.stderr)
     return {}
 
+
+
+def validate_config(path):
+    try:
+        import yaml
+    except Exception as e:
+        raise SystemExit(f"PyYAML unavailable; cannot validate generated config: {e}")
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise SystemExit("generated config root must be a mapping")
+    model_list = data.get("model_list")
+    if not isinstance(model_list, list) or not model_list:
+        raise SystemExit("generated config model_list must be non-empty list")
+    seen = set()
+    for idx, item in enumerate(model_list):
+        if not isinstance(item, dict):
+            raise SystemExit(f"model_list[{idx}] must be a mapping")
+        name = item.get("model_name")
+        params = item.get("litellm_params")
+        if not isinstance(name, str) or not name.strip():
+            raise SystemExit(f"model_list[{idx}] missing model_name")
+        if name in seen:
+            raise SystemExit(f"duplicate model_name: {name}")
+        seen.add(name)
+        if not isinstance(params, dict):
+            raise SystemExit(f"{name} missing litellm_params")
+        for key in ("model", "api_base"):
+            if not params.get(key):
+                raise SystemExit(f"{name} missing litellm_params.{key}")
+    for section in ("litellm_settings", "general_settings", "router_settings"):
+        if not isinstance(data.get(section), dict):
+            raise SystemExit(f"generated config missing mapping section: {section}")
+    print(f"[litellm-config] YAML validation ok: {len(model_list)} routes")
 
 def q(s):
     return json.dumps(str(s))
@@ -85,11 +120,16 @@ for name, model, api_base, api_key, src in routes:
 
 lines += [
     "",
+    "litellm_settings:",
+    f"  master_key: {q(MASTER_KEY)}",
+    f"  database_url: {q(DATABASE_URL)}",
+    "",
     "general_settings:",
     f"  master_key: {q(MASTER_KEY)}",
     "  disable_spend_logs: true",
     "  health_check_interval: 300",
     "  infer_model_from_keys: true",
+    "  background_health_checks: false",
     "",
     "router_settings:",
     "  routing_strategy: simple-shuffle",
@@ -101,6 +141,9 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with open(OUT, "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
 
+validate_config(OUT)
+
+print("[litellm-config] generated config path:", OUT)
 print("[litellm-config] discovered Ollama models:", ", ".join(ollama_models) or "none")
 print("[litellm-config] active vLLM models:", ", ".join(vllm_models) or "none")
 print("[litellm-config] generated LiteLLM routes:")
