@@ -21,7 +21,6 @@ Actual memory depends on quantization, context window, and parallelism.
 - Route coding/architecture/reasoning to `qwen3.5:35b` role.
 - Use fallback mappings when aliases are unavailable (`mistral_small`, `qwen32b`).
 
-## Future vLLM notes (optional profile)
-- Use `with-vllm` for higher throughput on supported models.
-- Tune tensor parallelism and max model length per GPU memory.
-- Keep LiteLLM as the single client-facing endpoint.
+## Future vLLM notes
+- vLLM is deferred in current compose runtime.
+- If introduced later, keep LiteLLM as the single client-facing endpoint.

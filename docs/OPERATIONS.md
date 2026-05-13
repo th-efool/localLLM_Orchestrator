@@ -19,11 +19,11 @@ Ollama (host.docker.internal:11434)
 5. `make health`
 6. `make verify`
 
-Optional:
-- `make up-vllm` (uses `with-vllm` profile only if present in compose; otherwise starts base stack)
-
 ## Lifecycle
 - Stop: `make down`
 - Restart: `make restart`
 - Logs: `make logs`
 - Cleanup volumes: `make clean`
+
+## Future note
+- `make up-vllm` is reserved for future compose profiles and currently falls back to base `make up`.
