@@ -117,7 +117,9 @@ services:
     container_name: localai-litellm
     restart: unless-stopped
     <<: [*service-env, *default-dns, *default-security]
-    entrypoint: ["/bin/bash", "/app/scripts/litellm_start.sh"]
+    user: "1000:1000" # Avoid root runtime where image supports it.
+    entrypoint: ["/bin/bash", "-lc"]
+    command: "python /app/scripts/generate_litellm_config.py && exec litellm --config /tmp/litellm.generated.yaml --port 4000 --host 0.0.0.0"
     environment:
       DATABASE_URL: "${DATABASE_URL:?DATABASE_URL required}"
       REDIS_URL: "${REDIS_URL:?REDIS_URL required}"
@@ -127,8 +129,6 @@ services:
       VLLM_API_BASE: "${VLLM_API_BASE:-}"
       VLLM_API_KEY: "${VLLM_API_KEY:-EMPTY}"
       LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
-      PYTHONUNBUFFERED: "${PYTHONUNBUFFERED:-1}"
-      LITELLM_LOG: "${LITELLM_LOG:-INFO}"
       STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
       DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}" # Enforce prebuilt Prisma client artifacts.
       DISABLE_BACKGROUND_BUDGET_RESET: "${DISABLE_BACKGROUND_BUDGET_RESET:-true}"
@@ -200,12 +200,7 @@ services:
       - no-new-privileges:true
     environment:
       OPENAI_API_BASE_URL: http://litellm:4000/v1
-      OPENAI_API_BASE_URLS: http://litellm:4000/v1
       OPENAI_API_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
-      OPENAI_API_KEYS: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
-      ENABLE_OPENAI_API: "True"
-      OLLAMA_BASE_URL: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
-      OLLAMA_BASE_URLS: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
       WEBUI_AUTH: "True"
       ENABLE_OLLAMA_API: "True"
       ENABLE_BASE_MODELS_CACHE: "False"
