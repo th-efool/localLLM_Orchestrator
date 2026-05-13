@@ -1,41 +1,38 @@
 # Local AI Inference + Orchestration Stack (Docker Compose)
 
-## Open WebUI integration
-Default runtime:
-- `litellm` container (`:4000`) -> routes to host Ollama (`host.docker.internal:11434`)
-- `open-webui` container (`:3000`) -> calls LiteLLM (`http://litellm:4000/v1`), never direct Ollama
-
-Optional profiles:
-- `with-vllm`: starts `vllm-qwen-coder` (`:8001`)
-- `with-ollama`: starts containerized `ollama` (`:11434`) instead of host Ollama usage
-
+## Runtime topology (expected)
+- `open-webui` (`localhost:3000`) -> `litellm` (`litellm:4000/v1`) inside Docker network.
+- `litellm` (`localhost:4000/v1`) -> Ollama route via `OLLAMA_API_BASE`.
+- Default `OLLAMA_API_BASE=http://host.docker.internal:11434` (host Ollama).
+- Optional `with-ollama` profile runs containerized Ollama (`ollama:11434`); use `OLLAMA_API_BASE=http://ollama:11434`.
+- Optional `with-vllm` profile runs `vllm-qwen-coder` (`localhost:8001`) for local OpenAI-compatible serving.
 
 ## Access URLs
 - Open WebUI: `http://localhost:3000`
 - LiteLLM OpenAI API: `http://localhost:4000/v1`
 - LiteLLM readiness: `http://localhost:4000/health/readiness`
 
-## Model visibility expectations
-- Open WebUI model list mirrors LiteLLM `/v1/models`.
-- Expected baseline models: `qwen35_35b`, `phi4`.
-- `qwen_coder_32b` appears only when `with-vllm` profile is running.
-
-## Startup (corrected)
+## Startup
 1. `cp .env.example .env`
 2. Set `LITELLM_MASTER_KEY` and `LITELLM_SALT_KEY`.
-3. Verify host Ollama: `curl http://localhost:11434/api/tags`
-4. Start default stack: `make start`
-5. Optional with vLLM: `make start-vllm`
+3. Verify host Ollama: `curl -fsS http://localhost:11434/api/tags`.
+4. Start stack: `make start`.
+
+Optional profiles:
+- vLLM: `make start-vllm`
+- Containerized Ollama:
+  - `export OLLAMA_API_BASE=http://ollama:11434`
+  - `make start-ollama`
 
 ## Operational verification checklist
 - Compose validity: `make validate`
 - Running services: `make ps`
-- LiteLLM health: `curl -f http://localhost:4000/health/readiness`
-- Model discovery: `make healthcheck`
-- Open WebUI reachability: `curl -f http://localhost:3000/health`
+- LiteLLM readiness: `curl -f http://localhost:4000/health/readiness`
+- Model list + base routing check: `make healthcheck`
+- API/routing checks: `make api-verify`
+- Open WebUI health: `curl -f http://localhost:3000/health`
 
 ## API validation (OpenAI-compatible)
-Set key:
 ```bash
 export OPENAI_API_KEY='sk-local-change-me'
 ```
@@ -45,46 +42,45 @@ List models:
 curl -sS -H "Authorization: Bearer $OPENAI_API_KEY" \
   http://localhost:4000/v1/models
 ```
-Expected: JSON with `data` including `qwen35_35b` and `phi4`; `qwen_coder_32b` appears when vLLM profile is up.
+Expected: `data[].id` includes baseline routes: `qwen32b`, `deepseek_r1_32b`, `mistral_small`.
 
-Chat completion (qwen):
+Chat completion (qwen32b):
 ```bash
 curl -sS http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"qwen35_35b","messages":[{"role":"user","content":"Reply with OK"}],"temperature":0}'
+  -d '{"model":"qwen32b","messages":[{"role":"user","content":"Reply with OK"}],"temperature":0}'
 ```
-Expected: `choices[0].message.content` present.
+Expected: JSON with `choices[0].message.content`.
 
-Routing test (phi4):
+Routing validation (deepseek + mistral):
 ```bash
 curl -sS http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"phi4","messages":[{"role":"user","content":"Reply with PHI4_OK"}],"temperature":0}'
-```
-Expected: successful completion from phi4 route.
+  -d '{"model":"deepseek_r1_32b","messages":[{"role":"user","content":"Reply with DEEPSEEK_OK"}],"temperature":0}'
 
-Routing test (vLLM, optional):
-```bash
 curl -sS http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"qwen_coder_32b","messages":[{"role":"user","content":"Write one Python function stub."}],"temperature":0}'
+  -d '{"model":"mistral_small","messages":[{"role":"user","content":"Reply with MISTRAL_OK"}],"temperature":0}'
 ```
-Expected: success only when `with-vllm` profile is running.
 
 ## Troubleshooting
-- `401 Unauthorized`: wrong `OPENAI_API_KEY` vs `LITELLM_MASTER_KEY` (used by Open WebUI backend calls).
-- `Model not found`: check `/v1/models`; ensure profile/service for that route is up.
-- `Connection refused to Ollama`: verify host Ollama is running and `.env` `OLLAMA_API_BASE` is correct.
-- `vLLM startup failure`: validate GPU availability and VRAM; check `make logs`.
-- `healthcheck` fails: inspect `docker compose logs litellm` and API base configuration.
+- `401 Unauthorized`: `OPENAI_API_KEY` must match `LITELLM_MASTER_KEY`.
+- `Model not found`: confirm `curl /v1/models` includes route and model name matches exactly.
+- Ollama connection errors from LiteLLM:
+  - host mode: ensure `OLLAMA_API_BASE=http://host.docker.internal:11434`
+  - with-ollama profile: ensure `OLLAMA_API_BASE=http://ollama:11434`
+- `open-webui` cannot list models: check `docker compose logs litellm open-webui`.
+- GPU failures (optional services): verify `docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi`.
 
 ## Helper commands
 - Start: `make start`
 - Start + vLLM: `make start-vllm`
+- Start + containerized Ollama: `make start-ollama`
 - Stop: `make stop`
 - Restart: `make restart`
 - Logs: `make logs`
 - Healthcheck: `make healthcheck`
+- API verify: `make api-verify`

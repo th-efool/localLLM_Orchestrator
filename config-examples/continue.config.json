@@ -1,0 +1,25 @@
+{
+  "models": [
+    {
+      "title": "LiteLLM Fast",
+      "provider": "openai",
+      "model": "phi4",
+      "apiBase": "http://localhost:4000/v1",
+      "apiKey": "${LITELLM_MASTER_KEY}"
+    },
+    {
+      "title": "LiteLLM Reasoning",
+      "provider": "openai",
+      "model": "qwen3.5:35b",
+      "apiBase": "http://localhost:4000/v1",
+      "apiKey": "${LITELLM_MASTER_KEY}"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "LiteLLM Fast",
+    "provider": "openai",
+    "model": "phi4",
+    "apiBase": "http://localhost:4000/v1",
+    "apiKey": "${LITELLM_MASTER_KEY}"
+  }
+}
