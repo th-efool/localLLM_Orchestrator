@@ -1,7 +1,7 @@
 # Local AI Inference + Orchestration Stack
 
 ## Runtime topology
-Host-native Ollama (WSL/Linux host) → Docker LiteLLM → Docker Open WebUI → optional Traefik/Postgres/Redis.
+Open WebUI → LiteLLM → host-native Ollama plus optional GPU vLLM containers → Traefik/Postgres/Redis.
 
 ## Why host-native Ollama
 For workstation-scale deployments with large local model stores, host-native Ollama reuses the existing host cache (including `qwen3:32b`, `deepseek-r1:32b`, `mistral-small`, and GGUF models), avoids duplicate Docker volume storage, eliminates model re-downloads, and reduces operational complexity.
@@ -10,6 +10,7 @@ For workstation-scale deployments with large local model stores, host-native Oll
 - Ollama (host): `http://localhost:11434`
 - LiteLLM (container exposed): `http://localhost:4000/v1`
 - Open WebUI (container exposed): `http://localhost:3000`
+- vLLM OpenAI endpoint (optional profile): `http://localhost:8001/v1`
 
 ## Environment
 1. `cp .env.example .env`
@@ -19,7 +20,8 @@ For workstation-scale deployments with large local model stores, host-native Oll
 
 ## Startup
 ```bash
-make up
+make up          # Ollama + LiteLLM + Open WebUI
+make up-vllm     # add GPU vLLM profile and unified LiteLLM routing
 make health
 ```
 
@@ -36,4 +38,6 @@ curl -fsS http://localhost:11434/api/tags
 curl -fsS http://localhost:4000/health/readiness
 curl -fsS http://localhost:3000/health
 curl -sS -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://localhost:4000/v1/models
+curl -fsS http://localhost:8001/v1/models        # when vLLM profile is running
+docker exec localai-vllm nvidia-smi              # when vLLM profile is running
 ```

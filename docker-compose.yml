@@ -68,23 +68,28 @@ services:
     container_name: localai-litellm-migrate
     restart: "no" # One-shot migration gate to avoid schema drift during app boot.
     <<: [*default-dns, *default-security]
-    entrypoint: ["/bin/bash", "/app/scripts/wait-for-dependencies.sh"]
+    entrypoint: ["/bin/bash", "-lc"]
+    command: "python /app/scripts/generate_litellm_config.py && /app/scripts/wait-for-dependencies.sh"
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
       OLLAMA_API_BASE: ${OLLAMA_API_BASE}
+      VLLM_API_BASE: ${VLLM_API_BASE:-}
+      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
+      LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
-      LITELLM_CONFIG_PATH: /app/config/litellm.yaml
+      LITELLM_CONFIG_PATH: /tmp/litellm.generated.yaml
       ENABLE_DB_MIGRATIONS: ${ENABLE_DB_MIGRATIONS:-true}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
+      - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
       - ./scripts/wait-for-dependencies.sh:/app/scripts/wait-for-dependencies.sh:ro
     depends_on:
       postgres:
@@ -104,13 +109,17 @@ services:
     restart: unless-stopped
     <<: [*default-dns, *default-security]
     user: "1000:1000" # Avoid root runtime where image supports it.
-    command: ["--config", "/app/config/litellm.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    entrypoint: ["/bin/bash", "-lc"]
+    command: "python /app/scripts/generate_litellm_config.py && exec litellm --config /tmp/litellm.generated.yaml --port 4000 --host 0.0.0.0"
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       OLLAMA_API_BASE: ${OLLAMA_API_BASE}
+      VLLM_API_BASE: ${VLLM_API_BASE:-}
+      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
+      LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
       STORE_MODEL_IN_DB: "True"
       DISABLE_PRISMA_GENERATE: "true" # Enforce prebuilt Prisma client artifacts.
       DISABLE_BACKGROUND_BUDGET_RESET: ${DISABLE_BACKGROUND_BUDGET_RESET:-true}
@@ -119,6 +128,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
+      - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
       - litellm_logs:/app/logs
     depends_on:
       postgres:
@@ -140,6 +150,30 @@ services:
     cpus: 2.0
     ulimits:
       nofile: 65536
+    logging: *default-logging
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: localai-vllm
+    restart: unless-stopped
+    profiles: ["with-vllm"]
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HUGGING_FACE_HUB_TOKEN:-}
+      HF_HOME: /root/.cache/huggingface
+    command: ["--model", "${VLLM_MODEL:-Qwen/Qwen2.5-Coder-7B-Instruct}", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    networks: [backend]
+    ipc: host
+    gpus: all
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/v1/models\", timeout=5).read()' >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
     logging: *default-logging
 
   open-webui:
@@ -204,10 +238,10 @@ networks:
     name: local-ai-edge
   backend:
     name: local-ai-backend
-    internal: true
 
 volumes:
   postgres_data:
   redis_data:
   litellm_logs:
   open_webui_data:
+  huggingface_cache:
