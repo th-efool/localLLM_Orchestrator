@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-make validate
-make api-verify
+make up
+make health
+make verify

@@ -2,43 +2,28 @@
 
 ## Topology
 ```text
-Continue/Claude/OpenHands/CrewAI/LangGraph/Open WebUI
-                    |
-                    v
-          LiteLLM (http://localhost:4000/v1)
-                    |
-                    v
-      Ollama (host.docker.internal:11434 or ollama:11434)
+Open WebUI / local tools
+         |
+         v
+LiteLLM (http://localhost:4000/v1)
+         |
+         v
+Ollama (host.docker.internal:11434)
 ```
 
-## Startup
+## Canonical workflow
 1. `cp .env.example .env`
 2. Set `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`
-3. Host Ollama check: `curl -fsS http://localhost:11434/api/tags`
-4. `make start`
+3. Confirm host Ollama: `curl -fsS http://localhost:11434/api/tags`
+4. `make up`
+5. `make health`
+6. `make verify`
 
 Optional:
-- `make start-ollama` (set `OLLAMA_API_BASE=http://ollama:11434`)
-- `make start-vllm`
+- `make up-vllm` (uses `with-vllm` profile only if present in compose; otherwise starts base stack)
 
-## Shutdown / Restart
-- Stop: `make stop`
-- Restart default: `make restart`
-- Restart single service: `docker compose restart litellm`
-
-## Logs and lifecycle
-- Services: `make ps`
-- All logs: `make logs`
-- LiteLLM logs: `make logs-litellm`
-- WebUI logs: `make logs-webui`
-- Health: `make healthcheck`
-
-Expected lifecycle:
-- `litellm` healthy within ~20-60s.
-- `open-webui` starts after LiteLLM readiness.
-- `ollama`/`vllm` optional based on profile.
-
-## GPU expectations
-- Required for large Ollama models and vLLM profile.
-- Check runtime GPU visibility: `make gpu-check`
-- If no GPU, large models may fail to load or be extremely slow.
+## Lifecycle
+- Stop: `make down`
+- Restart: `make restart`
+- Logs: `make logs`
+- Cleanup volumes: `make clean`
