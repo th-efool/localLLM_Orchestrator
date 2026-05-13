@@ -98,6 +98,7 @@ services:
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
+      - ./scripts/ollama_network.py:/app/scripts/ollama_network.py:ro
       - ./scripts/wait-for-dependencies.sh:/app/scripts/wait-for-dependencies.sh:ro
     depends_on:
       postgres:
@@ -137,6 +138,9 @@ services:
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
+      - ./scripts/ollama_network.py:/app/scripts/ollama_network.py:ro
+      - ./scripts/litellm_start.sh:/app/scripts/litellm_start.sh:ro
+      - ./scripts/litellm_healthcheck.sh:/app/scripts/litellm_healthcheck.sh:ro
       - litellm_logs:/app/logs
     depends_on:
       postgres:
@@ -145,15 +149,17 @@ services:
         condition: service_healthy
       litellm-migrate:
         condition: service_completed_successfully
+    ports:
+      - "4000:4000"
     networks: [backend]
-    read_only: true
+    read_only: false
     tmpfs: ["/tmp"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health/readiness >/dev/null"]
+      test: ["CMD", "/bin/bash", "/app/scripts/litellm_healthcheck.sh"]
       interval: 15s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
     mem_limit: 2g
     cpus: 2.0
     ulimits:
@@ -196,7 +202,10 @@ services:
       OPENAI_API_BASE_URL: http://litellm:4000/v1
       OPENAI_API_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
       WEBUI_AUTH: "True"
-      ENABLE_OLLAMA_API: "False"
+      ENABLE_OLLAMA_API: "True"
+      ENABLE_BASE_MODELS_CACHE: "False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:8080"
     volumes:
@@ -207,7 +216,7 @@ services:
     networks: [backend, edge]
     read_only: false
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null"]
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health >/dev/null && wget -qO- http://host.docker.internal:11434/api/tags >/dev/null && wget --header="Authorization: Bearer $$OPENAI_API_KEY" -qO- http://litellm:4000/v1/models >/dev/null']
       interval: 20s
       timeout: 10s
       retries: 12
