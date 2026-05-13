@@ -1,0 +1,39 @@
+# Documentation Index
+
+## Core
+- `ARCHITECTURE.md`
+- `DECISIONS.md`
+- `SYSTEM_IDENTITY.md`
+- `ROADMAP.md`
+- `CONSTRAINTS.md`
+
+## Operations
+- `OPERATIONS.md`
+- `VALIDATION.md`
+- `TROUBLESHOOTING.md`
+- `PERFORMANCE.md`
+- `CAPACITY_PLANNING.md`
+- `OBSERVABILITY.md`
+
+## Security & Hardening
+- `SECURITY.md`
+- `HARDENING_RUNTIME.md`
+- `AGENT_SAFETY.md`
+- `MULTI_USER_ARCHITECTURE.md`
+
+## Agent & Orchestration
+- `AGENT_RUNTIME_ARCHITECTURE.md`
+- `AGENT_WORKFLOWS.md`
+- `LANGGRAPH_PATTERNS.md`
+- `CREWAI_PATTERNS.md`
+- `MODEL_ROUTING.md`
+
+## Integrations & Access
+- `INTEGRATIONS.md`
+- `API_ACCESS.md`
+- `REMOTE_ACCESS.md`
+- `TAILSCALE_SETUP.md`
+- `OPENHANDS_SETUP.md`
+
+## Development
+- `DEVELOPMENT_WORKFLOWS.md`
