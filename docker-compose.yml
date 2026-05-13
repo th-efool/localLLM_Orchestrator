@@ -68,23 +68,26 @@ services:
     container_name: localai-litellm-migrate
     restart: "no" # One-shot migration gate to avoid schema drift during app boot.
     <<: [*default-dns, *default-security]
-    entrypoint: ["/bin/bash", "/app/scripts/wait-for-dependencies.sh"]
+    entrypoint: ["/bin/bash", "-lc", "/app/scripts/wait-for-dependencies.sh && /app/scripts/generate_litellm_config.py && litellm --config ${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml} --test >/dev/null"]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      OLLAMA_HOST: host.docker.internal
-      OLLAMA_PORT: 11434
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       LITELLM_CONFIG_PATH: /app/config/litellm.yaml
+      LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
       ENABLE_DB_MIGRATIONS: ${ENABLE_DB_MIGRATIONS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/wait-for-dependencies.sh:/app/scripts/wait-for-dependencies.sh:ro
+      - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,7 +106,7 @@ services:
     restart: unless-stopped
     <<: [*default-dns, *default-security]
     user: "1000:1000" # Avoid root runtime where image supports it.
-    command: ["--config", "/app/config/litellm.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    command: ["/bin/bash", "-lc", "/app/scripts/generate_litellm_config.py && litellm --config ${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml} --port 4000 --host 0.0.0.0"]
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -113,11 +116,13 @@ services:
       STORE_MODEL_IN_DB: "True"
       DISABLE_PRISMA_GENERATE: "true" # Enforce prebuilt Prisma client artifacts.
       DISABLE_BACKGROUND_BUDGET_RESET: ${DISABLE_BACKGROUND_BUDGET_RESET:-true}
+      LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
       LITELLM_DISABLE_AUTO_MIGRATIONS: "true" # Prevent app startup from mutating schema.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
+      - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
       - litellm_logs:/app/logs
     depends_on:
       postgres:

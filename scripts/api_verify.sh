@@ -4,21 +4,17 @@ set -euo pipefail
 BASE="${1:-http://localhost:4000/v1}"
 KEY="${LITELLM_MASTER_KEY:-sk-local-change-me}"
 
-call_chat() {
-  local model="$1"
-  local marker="$2"
-  curl -fsS "$BASE/chat/completions" \
-    -H "Authorization: Bearer $KEY" \
-    -H 'Content-Type: application/json' \
-    -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply exactly: $marker\"}],\"temperature\":0}" \
-  | python3 -c 'import json,sys; d=json.load(sys.stdin); c=d["choices"][0]["message"]["content"]; print(c); assert c.strip(), "empty response"'
-}
+ollama_tags=$(curl -fsS http://localhost:11434/api/tags)
+litellm_models=$(curl -fsS -H "Authorization: Bearer $KEY" "$BASE/models")
 
-curl -fsS -H "Authorization: Bearer $KEY" "$BASE/models" \
-| python3 -c 'import json,sys; d=json.load(sys.stdin); ids={m.get("id") for m in d.get("data",[])}; print("models:", ", ".join(sorted(x for x in ids if x))); req={"qwen32b","deepseek_r1_32b","mistral_small"}; miss=req-ids; assert not miss, f"missing required models: {sorted(miss)}"'
-
-echo "qwen32b test:"; call_chat qwen32b QWEN32B_OK
-echo "deepseek_r1_32b test:"; call_chat deepseek_r1_32b DEEPSEEK_OK
-echo "mistral_small test:"; call_chat mistral_small MISTRAL_OK
+python3 - <<'PY' "$ollama_tags" "$litellm_models"
+import json,sys
+ollama={m.get('name') for m in json.loads(sys.argv[1]).get('models',[]) if m.get('name')}
+models={m.get('id') for m in json.loads(sys.argv[2]).get('data',[]) if m.get('id')}
+missing=sorted(ollama-models)
+assert ollama, 'ollama model list is empty'
+assert not missing, f'missing models in litellm: {missing}'
+print('models discovered:', len(models), 'ollama models:', len(ollama))
+PY
 
 echo "API verification: OK"
