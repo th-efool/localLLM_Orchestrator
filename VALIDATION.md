@@ -47,3 +47,14 @@ Expected:
 Expected outputs
 - Non-empty assistant content
 - No direct `:11434` usage in tool configs
+
+## 7) OpenHands runtime verification
+1. `make start-openhands`
+2. `make verify-openhands`
+3. `scripts/openhands_workflows.sh`
+
+Expected:
+- OpenHands reachable on `http://localhost:3001`
+- LiteLLM readiness passes
+- `qwen3.5:35b` or fallback available
+- `phi4` or fallback available

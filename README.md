@@ -23,6 +23,10 @@ Optional profiles:
 - Containerized Ollama:
   - `export OLLAMA_API_BASE=http://ollama:11434`
   - `make start-ollama`
+- OpenHands runtime:
+  - `make start-openhands`
+  - Open `http://localhost:3001`
+  - `make verify-openhands`
 
 ## Operational verification checklist
 - Compose validity: `make validate`
