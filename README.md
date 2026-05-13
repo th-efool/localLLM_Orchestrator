@@ -96,9 +96,9 @@ curl -sS http://localhost:4000/v1/chat/completions \
 - API verify: `make api-verify`
 
 ## Secure remote access (Tailscale)
-- Setup and hardening: `TAILSCALE_SETUP.md`
-- Access architecture/workflows: `REMOTE_ACCESS.md`
-- OpenAI-compatible remote API usage: `API_ACCESS.md`
+- Setup and hardening: `docs/TAILSCALE_SETUP.md`
+- Access architecture/workflows: `docs/REMOTE_ACCESS.md`
+- OpenAI-compatible remote API usage: `docs/API_ACCESS.md`
 
 Remote helper commands:
 - `make remote-healthcheck`
@@ -107,7 +107,7 @@ Remote helper commands:
 
 
 ## Multi-user hardening docs
-- Security baseline: `SECURITY.md`
-- Multi-user platform layout: `MULTI_USER_ARCHITECTURE.md`
-- Observability standards: `OBSERVABILITY.md`
-- Capacity planning/runbooks: `CAPACITY_PLANNING.md`
+- Security baseline: `docs/SECURITY.md`
+- Multi-user platform layout: `docs/MULTI_USER_ARCHITECTURE.md`
+- Observability standards: `docs/OBSERVABILITY.md`
+- Capacity planning/runbooks: `docs/CAPACITY_PLANNING.md`
