@@ -8,9 +8,9 @@
 - Optional `with-vllm` profile runs `vllm-qwen-coder` (`localhost:8001`) for local OpenAI-compatible serving.
 
 ## Access URLs
-- Open WebUI: `http://localhost:3000`
-- LiteLLM OpenAI API: `http://localhost:4000/v1`
-- LiteLLM readiness: `http://localhost:4000/health/readiness`
+- Open WebUI: `https://localhost/`
+- LiteLLM OpenAI API: `https://localhost/v1`
+- LiteLLM readiness: `https://localhost/health/readiness`
 
 ## Startup
 1. `cp .env.example .env`
@@ -31,10 +31,16 @@ Optional profiles:
 ## Operational verification checklist
 - Compose validity: `make validate`
 - Running services: `make ps`
-- LiteLLM readiness: `curl -f http://localhost:4000/health/readiness`
+- LiteLLM readiness: `curl -kf https://localhost/health/readiness`
 - Model list + base routing check: `make healthcheck`
 - API/routing checks: `make api-verify`
-- Open WebUI health: `curl -f http://localhost:3000/health`
+- Open WebUI health: `curl -kf https://localhost/health`
+
+PostgreSQL + Prisma verification:
+- `docker compose up -d postgres litellm`
+- `docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
+- `docker compose logs litellm | rg -i "prisma|migrat|ready|error"`
+- `docker compose exec litellm sh -lc 'echo $DATABASE_URL'`
 
 ## API validation (OpenAI-compatible)
 ```bash
@@ -98,3 +104,10 @@ Remote helper commands:
 - `make remote-healthcheck`
 - `make remote-api-verify`
 - `make endpoint-validate`
+
+
+## Multi-user hardening docs
+- Security baseline: `SECURITY.md`
+- Multi-user platform layout: `MULTI_USER_ARCHITECTURE.md`
+- Observability standards: `OBSERVABILITY.md`
+- Capacity planning/runbooks: `CAPACITY_PLANNING.md`
