@@ -34,12 +34,14 @@ make up          # LiteLLM + Open WebUI + Postgres + Redis + Traefik
 make up-vllm     # add GPU vLLM profile and unified LiteLLM routing
 make health
 make diagnose     # forensic runtime diagnostics
+make diagnose-network # Docker↔WSL/Ollama diagnostics
 ```
 
 ## Operations
 ```bash
 make logs
 make diagnose
+make diagnose-network
 make down
 ```
 

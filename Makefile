@@ -1,7 +1,7 @@
 ENV_FILE ?= .env
 COMPOSE ?= docker compose --env-file $(ENV_FILE)
 
-.PHONY: up up-vllm down restart logs health verify verify-env diagnose clean logs-vllm verify-vllm gpu-check
+.PHONY: up up-vllm down restart logs health verify verify-env diagnose diagnose-network clean logs-vllm verify-vllm gpu-check
 
 .env:
 	cp .env.example .env
@@ -48,6 +48,9 @@ verify-vllm: verify-env
 
 diagnose: .env
 	ENV_FILE=$(ENV_FILE) COMPOSE='$(COMPOSE)' ./scripts/diagnose.sh
+
+diagnose-network: .env
+	ENV_FILE=$(ENV_FILE) COMPOSE='$(COMPOSE)' ./scripts/diagnose_network.sh
 
 gpu-check:
 	docker exec localai-vllm nvidia-smi

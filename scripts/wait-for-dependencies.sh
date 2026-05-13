@@ -34,11 +34,8 @@ wait_for_tcp() {
 wait_for_tcp "${POSTGRES_HOST:-postgres}" "${POSTGRES_PORT:-5432}" postgres
 wait_for_tcp "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" redis
 
-ollama_host=$(echo "$OLLAMA_API_BASE" | sed -E 's#^https?://([^/:]+).*$#\1#')
-ollama_port=$(echo "$OLLAMA_API_BASE" | sed -E 's#^https?://[^/:]+:([0-9]+).*$#\1#')
-[[ "$ollama_port" == "$OLLAMA_API_BASE" ]] && ollama_port=11434
-wait_for_tcp "$ollama_host" "$ollama_port" ollama
-
+echo "validating Ollama container connectivity"
+python /app/scripts/ollama_network.py --check
 if [[ "${ENABLE_DB_MIGRATIONS:-true}" == "true" ]]; then
   litellm --config "$LITELLM_CONFIG_PATH" --test >/dev/null
 fi

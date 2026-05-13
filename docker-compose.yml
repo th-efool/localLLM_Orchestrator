@@ -98,6 +98,7 @@ services:
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
+      - ./scripts/ollama_network.py:/app/scripts/ollama_network.py:ro
       - ./scripts/wait-for-dependencies.sh:/app/scripts/wait-for-dependencies.sh:ro
     depends_on:
       postgres:
@@ -137,6 +138,7 @@ services:
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
+      - ./scripts/ollama_network.py:/app/scripts/ollama_network.py:ro
       - ./scripts/litellm_start.sh:/app/scripts/litellm_start.sh:ro
       - ./scripts/litellm_healthcheck.sh:/app/scripts/litellm_healthcheck.sh:ro
       - litellm_logs:/app/logs
@@ -198,9 +200,17 @@ services:
       - no-new-privileges:true
     environment:
       OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_BASE_URLS: http://litellm:4000/v1
       OPENAI_API_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
+      OPENAI_API_KEYS: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
+      ENABLE_OPENAI_API: "True"
+      OLLAMA_BASE_URL: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
+      OLLAMA_BASE_URLS: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
       WEBUI_AUTH: "True"
-      ENABLE_OLLAMA_API: "False"
+      ENABLE_OLLAMA_API: "True"
+      ENABLE_BASE_MODELS_CACHE: "False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:8080"
     volumes:
@@ -211,7 +221,7 @@ services:
     networks: [backend, edge]
     read_only: false
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null"]
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health >/dev/null && wget -qO- http://host.docker.internal:11434/api/tags >/dev/null && wget --header="Authorization: Bearer $$OPENAI_API_KEY" -qO- http://litellm:4000/v1/models >/dev/null']
       interval: 20s
       timeout: 10s
       retries: 12

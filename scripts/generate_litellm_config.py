@@ -6,6 +6,8 @@ import time
 import urllib.error
 import urllib.request
 
+from ollama_network import discover as discover_ollama
+
 OUT = os.getenv("LITELLM_GENERATED_CONFIG_PATH", "/tmp/litellm.generated.yaml")
 OLLAMA = os.getenv("OLLAMA_API_BASE", "http://host.docker.internal:11434").rstrip("/")
 VLLM = os.getenv("VLLM_API_BASE", "").rstrip("/")
@@ -77,7 +79,7 @@ def ids_from_openai_models(payload):
     return [m.get("id") for m in payload.get("data", []) if m.get("id")]
 
 
-ollama_payload = fetch_json(f"{OLLAMA}/api/tags", required=True)
+OLLAMA, ollama_payload = discover_ollama(required=True)
 ollama_models = [m.get("name") for m in ollama_payload.get("models", []) if m.get("name")]
 vllm_models = []
 if VLLM:

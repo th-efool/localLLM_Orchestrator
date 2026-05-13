@@ -61,6 +61,9 @@ s.close()
 print('[litellm-start] port 4000 bind smoke ok')
 PY
 
+log "phase=ollama-network"
+python3 /app/scripts/ollama_network.py --check
+
 log "phase=generate-config"
 python3 /app/scripts/generate_litellm_config.py
 [[ -s "$CONFIG_PATH" ]] || fail "generated config empty/missing: $CONFIG_PATH"
