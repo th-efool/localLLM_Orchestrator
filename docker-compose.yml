@@ -4,7 +4,7 @@ x-logging: &default-logging
   driver: json-file
   options:
     max-size: "10m"
-    max-file: "3"
+    max-file: "5"
 
 x-nvidia-gpu: &nvidia-gpu
   deploy:
@@ -16,13 +16,41 @@ x-nvidia-gpu: &nvidia-gpu
             capabilities: [gpu]
 
 services:
+  reverse-proxy:
+    image: traefik:v3.1
+    container_name: reverse-proxy
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./proxy/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./proxy/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./data/traefik/acme:/acme
+      - ./logs/traefik:/var/log/traefik
+    depends_on:
+      litellm:
+        condition: service_healthy
+      open-webui:
+        condition: service_healthy
+    networks:
+      - edge
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: unless-stopped
     command: ["--config", "/app/config/litellm.yaml", "--port", "4000", "--host", "0.0.0.0"]
-    ports:
-      - "4000:4000"
+    expose: ["4000"]
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
@@ -32,12 +60,12 @@ services:
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./data/litellm:/app/proxy_server_db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       vllm-qwen-coder:
         condition: service_started
         required: false
+    networks: [backend]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health/readiness"]
       interval: 15s
@@ -46,20 +74,41 @@ services:
       start_period: 20s
     logging: *default-logging
 
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    expose: ["8080"]
+    environment:
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      WEBUI_AUTH: "True"
+      ENABLE_OLLAMA_API: "False"
+    volumes: ["./data/open-webui:/app/backend/data"]
+    depends_on:
+      litellm:
+        condition: service_healthy
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    logging: *default-logging
+
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
     profiles: ["with-ollama"]
-    ports:
-      - "11434:11434"
+    ports: ["11434:11434"]
     environment:
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-24h}
       OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
       OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
       OLLAMA_HOST: 0.0.0.0
-    volumes:
-      - ./data/ollama:/root/.ollama
+    volumes: ["./data/ollama:/root/.ollama"]
+    networks: [backend]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s
@@ -74,31 +123,13 @@ services:
     container_name: vllm-qwen-coder
     restart: unless-stopped
     profiles: ["with-vllm"]
-    ports:
-      - "8001:8000"
+    ports: ["8001:8000"]
     environment:
       HUGGING_FACE_HUB_TOKEN: ${HUGGING_FACE_HUB_TOKEN:-}
       VLLM_LOGGING_LEVEL: INFO
-    volumes:
-      - ./data/huggingface:/root/.cache/huggingface
-    command:
-      - --model
-      - Qwen/Qwen2.5-Coder-32B-Instruct
-      - --served-model-name
-      - qwen2.5-coder-32b
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-      - --gpu-memory-utilization
-      - "0.92"
-      - --max-model-len
-      - "32768"
-      - --tensor-parallel-size
-      - "1"
-      - --dtype
-      - auto
-      - --enable-prefix-caching
+    volumes: ["./data/huggingface:/root/.cache/huggingface"]
+    command: [--model, Qwen/Qwen2.5-Coder-32B-Instruct, --served-model-name, qwen2.5-coder-32b, --host, 0.0.0.0, --port, "8000", --gpu-memory-utilization, "0.92", --max-model-len, "32768", --tensor-parallel-size, "1", --dtype, auto, --enable-prefix-caching]
+    networks: [backend]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
       interval: 30s
@@ -108,48 +139,23 @@ services:
     <<: *nvidia-gpu
     logging: *default-logging
 
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
-    restart: unless-stopped
-    ports:
-      - "3000:8080"
-    environment:
-      OPENAI_API_BASE_URL: http://litellm:4000/v1
-      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
-      WEBUI_AUTH: "False"
-      ENABLE_OLLAMA_API: "False"
-    volumes:
-      - ./data/open-webui:/app/backend/data
-    depends_on:
-      litellm:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-    logging: *default-logging
-
   openhands:
     image: docker.all-hands.dev/all-hands-ai/openhands:latest
     container_name: openhands
     restart: unless-stopped
     profiles: ["with-openhands"]
-    ports:
-      - "3001:3000"
+    ports: ["3001:3000"]
     environment:
       OPENAI_API_BASE: http://litellm:4000/v1
       OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
       OPENHANDS_MODEL: ${OPENHANDS_MODEL:-qwen3.5:35b}
       OPENHANDS_FALLBACK_MODEL: ${OPENHANDS_FALLBACK_MODEL:-phi4}
       WORKSPACE_MOUNT_PATH: /workspace
-    volumes:
-      - ./data/openhands:/opt/openhands/data
-      - ./:/workspace/repo
+    volumes: ["./data/openhands:/opt/openhands/data", "./:/workspace/repo"]
     depends_on:
       litellm:
         condition: service_healthy
+    networks: [backend]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 30s
@@ -158,6 +164,39 @@ services:
       start_period: 40s
     logging: *default-logging
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    restart: unless-stopped
+    profiles: ["with-observability"]
+    ports: ["9090:9090"]
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --web.enable-lifecycle]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    networks: [backend]
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.1.5
+    container_name: grafana
+    restart: unless-stopped
+    profiles: ["with-observability"]
+    ports: ["3100:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on: [prometheus]
+    networks: [backend]
+    logging: *default-logging
+
 networks:
-  default:
-    name: local-ai-net
+  edge:
+    name: local-ai-edge
+  backend:
+    name: local-ai-backend
+    internal: true

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMPOSE=${COMPOSE:-docker compose}
+DOMAIN=${DOMAIN_NAME:-localhost}
+
+$COMPOSE config >/dev/null
+
+if ! $COMPOSE ps --status running reverse-proxy litellm open-webui >/dev/null; then
+  echo "required services are not running"
+  exit 1
+fi
+
+curl -fsS "http://127.0.0.1/.well-known" >/dev/null 2>&1 || true
+curl -kfsS "https://${DOMAIN}/health/readiness" >/dev/null
+curl -kfsS "https://${DOMAIN}/" >/dev/null
+
+$COMPOSE logs --tail=50 reverse-proxy | tail -n 20
+
+echo "hardening validation passed"

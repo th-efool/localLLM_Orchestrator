@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'reverse-proxy-admin'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['reverse-proxy:2019']
+
+  - job_name: 'litellm-health'
+    metrics_path: /health/readiness
+    static_configs:
+      - targets: ['litellm:4000']
+
+  - job_name: 'open-webui-health'
+    metrics_path: /health
+    static_configs:
+      - targets: ['open-webui:8080']
