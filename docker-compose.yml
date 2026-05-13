@@ -22,7 +22,7 @@ services:
     image: postgres:16
     container_name: localai-postgres
     restart: unless-stopped
-    <<: [*default-dns, *default-security]
+    <<: *default-dns
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -47,7 +47,7 @@ services:
     image: redis:7-alpine
     container_name: localai-redis
     restart: unless-stopped
-    <<: [*default-dns, *default-security]
+    <<: *default-dns
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     volumes:
       - redis_data:/data
@@ -63,32 +63,6 @@ services:
       nofile: 65536
     logging: *default-logging
 
-  ollama:
-    image: ollama/ollama:0.5.11
-    container_name: localai-ollama
-    restart: unless-stopped
-    <<: *default-dns
-    security_opt:
-      - no-new-privileges:true
-    ports: ["11434:11434"]
-    environment:
-      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE}
-      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS}
-      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL}
-      OLLAMA_HOST: 0.0.0.0
-    volumes:
-      - ollama_models:/root/.ollama
-    networks: [backend]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:11434/api/tags >/dev/null"]
-      interval: 20s
-      timeout: 8s
-      retries: 15
-      start_period: 30s
-    mem_limit: 16g
-    cpus: 6.0
-    logging: *default-logging
-
   litellm-migrate:
     image: litellm/litellm-database:v1.83.14-stable.patch.3
     container_name: localai-litellm-migrate
@@ -100,7 +74,7 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      OLLAMA_HOST: ollama
+      OLLAMA_HOST: host.docker.internal
       OLLAMA_PORT: 11434
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -115,8 +89,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     networks: [backend]
     read_only: true
@@ -142,6 +114,8 @@ services:
       DISABLE_PRISMA_GENERATE: "true" # Enforce prebuilt Prisma client artifacts.
       DISABLE_BACKGROUND_BUDGET_RESET: ${DISABLE_BACKGROUND_BUDGET_RESET:-true}
       LITELLM_DISABLE_AUTO_MIGRATIONS: "true" # Prevent app startup from mutating schema.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - litellm_logs:/app/logs
@@ -149,8 +123,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
       litellm-migrate:
         condition: service_completed_successfully
@@ -237,5 +209,4 @@ volumes:
   postgres_data:
   redis_data:
   litellm_logs:
-  ollama_models:
   open_webui_data:
