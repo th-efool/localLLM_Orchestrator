@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
+load_env
+
 BASE="${OPENAI_API_BASE:-http://localhost:4000/v1}"
 KEY="${OPENAI_API_KEY:-${LITELLM_MASTER_KEY:-sk-local-change-me}}"
 MODEL="${OPENHANDS_MODEL:-qwen3.5:35b}"

@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DC=${DC:-"docker compose"}
-KEY="${LITELLM_MASTER_KEY:-sk-local-change-me}"
+# shellcheck source=env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
+load_env
+require_env
+
+DC=${DC:-$COMPOSE}
+KEY="${LITELLM_MASTER_KEY}"
 VERIFY_VLLM="${VERIFY_VLLM:-false}"
 
 $DC ps >/dev/null
@@ -14,12 +19,12 @@ for s in "${services[@]}"; do
   [[ "$state" == "healthy" || "$state" == "running" ]] || { echo "$s health=$state"; exit 1; }
 done
 
-$DC exec -T postgres pg_isready -h 127.0.0.1 -U "${POSTGRES_USER:-litellm}" -d "${POSTGRES_DB:-litellm}" >/dev/null
+$DC exec -T postgres pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null
 $DC exec -T redis redis-cli ping | grep -q PONG
 curl -fsS http://localhost:4000/health/readiness >/dev/null
 curl -fsS http://localhost:3000/health >/dev/null
 
-ollama_tags=$(curl -fsS http://localhost:11434/api/tags)
+ollama_tags=$(curl -fsS "${OLLAMA_API_BASE/http:\/\/host.docker.internal/http:\/\/localhost}/api/tags")
 litellm_models=$(curl -fsS -H "Authorization: Bearer $KEY" http://localhost:4000/v1/models)
 vllm_models='{}'
 if [[ "$VERIFY_VLLM" == "true" ]]; then

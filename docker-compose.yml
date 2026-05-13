@@ -1,4 +1,9 @@
-name: local-ai-stack
+name: ${COMPOSE_PROJECT_NAME:-local-ai-stack}
+
+x-service-env: &service-env
+  env_file:
+    - .env
+
 
 x-default-logging: &default-logging
   driver: json-file
@@ -22,17 +27,17 @@ services:
     image: postgres:16
     container_name: localai-postgres
     restart: unless-stopped
-    <<: *default-dns
+    <<: [*service-env, *default-dns]
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: "${POSTGRES_USER:?POSTGRES_USER required}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}"
+      POSTGRES_DB: "${POSTGRES_DB:?POSTGRES_DB required}"
       POSTGRES_INITDB_ARGS: "--auth=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks: [backend]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:?POSTGRES_USER required} -d ${POSTGRES_DB:?POSTGRES_DB required}"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -47,7 +52,7 @@ services:
     image: redis:7-alpine
     container_name: localai-redis
     restart: unless-stopped
-    <<: *default-dns
+    <<: [*service-env, *default-dns]
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     volumes:
       - redis_data:/data
@@ -67,24 +72,27 @@ services:
     image: litellm/litellm-database:v1.83.14-stable.patch.3
     container_name: localai-litellm-migrate
     restart: "no" # One-shot migration gate to avoid schema drift during app boot.
-    <<: [*default-dns, *default-security]
+    <<: [*service-env, *default-dns, *default-security]
     entrypoint: ["/bin/bash", "-lc"]
     command: "python /app/scripts/generate_litellm_config.py && /app/scripts/wait-for-dependencies.sh"
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
-      VLLM_API_BASE: ${VLLM_API_BASE:-}
-      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
+      POSTGRES_HOST: "${POSTGRES_HOST:-postgres}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      REDIS_HOST: "${REDIS_HOST:-redis}"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      OLLAMA_API_BASE: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
+      VLLM_API_BASE: "${VLLM_API_BASE:-}"
+      VLLM_API_KEY: "${VLLM_API_KEY:-EMPTY}"
       LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
-      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL required}"
+      REDIS_URL: "${REDIS_URL:?REDIS_URL required}"
+      LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
+      LITELLM_SALT_KEY: "${LITELLM_SALT_KEY:?LITELLM_SALT_KEY required}"
       LITELLM_CONFIG_PATH: /tmp/litellm.generated.yaml
-      ENABLE_DB_MIGRATIONS: ${ENABLE_DB_MIGRATIONS:-true}
+      ENABLE_DB_MIGRATIONS: "${ENABLE_DB_MIGRATIONS:-true}"
+      STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
+      DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}"
+      LITELLM_DISABLE_AUTO_MIGRATIONS: "false"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -107,23 +115,23 @@ services:
     image: litellm/litellm-database:v1.83.14-stable.patch.3
     container_name: localai-litellm
     restart: unless-stopped
-    <<: [*default-dns, *default-security]
+    <<: [*service-env, *default-dns, *default-security]
     user: "1000:1000" # Avoid root runtime where image supports it.
     entrypoint: ["/bin/bash", "-lc"]
     command: "python /app/scripts/generate_litellm_config.py && exec litellm --config /tmp/litellm.generated.yaml --port 4000 --host 0.0.0.0"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
-      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
-      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
-      VLLM_API_BASE: ${VLLM_API_BASE:-}
-      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
+      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL required}"
+      REDIS_URL: "${REDIS_URL:?REDIS_URL required}"
+      LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
+      LITELLM_SALT_KEY: "${LITELLM_SALT_KEY:?LITELLM_SALT_KEY required}"
+      OLLAMA_API_BASE: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
+      VLLM_API_BASE: "${VLLM_API_BASE:-}"
+      VLLM_API_KEY: "${VLLM_API_KEY:-EMPTY}"
       LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
-      STORE_MODEL_IN_DB: "True"
-      DISABLE_PRISMA_GENERATE: "true" # Enforce prebuilt Prisma client artifacts.
-      DISABLE_BACKGROUND_BUDGET_RESET: ${DISABLE_BACKGROUND_BUDGET_RESET:-true}
-      LITELLM_DISABLE_AUTO_MIGRATIONS: "true" # Prevent app startup from mutating schema.
+      STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
+      DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}" # Enforce prebuilt Prisma client artifacts.
+      DISABLE_BACKGROUND_BUDGET_RESET: "${DISABLE_BACKGROUND_BUDGET_RESET:-true}"
+      LITELLM_DISABLE_AUTO_MIGRATIONS: "${LITELLM_DISABLE_AUTO_MIGRATIONS:-true}" # Prevent app startup from mutating schema.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -157,8 +165,9 @@ services:
     container_name: localai-vllm
     restart: unless-stopped
     profiles: ["with-vllm"]
+    <<: *service-env
     environment:
-      HUGGING_FACE_HUB_TOKEN: ${HUGGING_FACE_HUB_TOKEN:-}
+      HUGGING_FACE_HUB_TOKEN: "${HUGGING_FACE_HUB_TOKEN:-}"
       HF_HOME: /root/.cache/huggingface
     command: ["--model", "${VLLM_MODEL:-Qwen/Qwen2.5-Coder-7B-Instruct}", "--host", "0.0.0.0", "--port", "8000"]
     ports:
@@ -180,12 +189,12 @@ services:
     image: ghcr.io/open-webui/open-webui:v0.5.12
     container_name: localai-open-webui
     restart: unless-stopped
-    <<: *default-dns
+    <<: [*service-env, *default-dns]
     security_opt:
       - no-new-privileges:true
     environment:
       OPENAI_API_BASE_URL: http://litellm:4000/v1
-      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      OPENAI_API_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
       WEBUI_AUTH: "True"
       ENABLE_OLLAMA_API: "False"
     ports:
@@ -210,7 +219,7 @@ services:
     image: traefik:v3.1
     container_name: localai-traefik
     restart: unless-stopped
-    <<: [*default-dns, *default-security]
+    <<: [*service-env, *default-dns, *default-security]
     command: ["--configFile=/etc/traefik/traefik.yml"]
     ports: ["80:80", "443:443"]
     volumes:

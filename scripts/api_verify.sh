@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=env.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/env.sh"
+load_env
+
 BASE="${1:-http://localhost:4000/v1}"
 KEY="${LITELLM_MASTER_KEY:-sk-local-change-me}"
 VERIFY_VLLM="${VERIFY_VLLM:-false}"
