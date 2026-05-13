@@ -6,6 +6,16 @@ for v in "${required[@]}"; do
   [[ -n "${!v:-}" ]] || { echo "missing required env: $v" >&2; exit 1; }
 done
 
+echo "env file: container env from docker compose env_file=.env"
+echo "compose profiles: ${COMPOSE_PROFILES:-default}"
+echo "DATABASE_URL host: $(python3 - <<'PY'
+import os
+from urllib.parse import urlparse
+print(urlparse(os.environ['DATABASE_URL']).hostname or '')
+PY
+)"
+echo "OLLAMA_API_BASE: $OLLAMA_API_BASE"
+
 [[ -f "$LITELLM_CONFIG_PATH" ]] || { echo "missing config: $LITELLM_CONFIG_PATH" >&2; exit 1; }
 
 wait_for_tcp() {
