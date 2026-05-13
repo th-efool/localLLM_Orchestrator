@@ -151,7 +151,7 @@ services:
       litellm-migrate:
         condition: service_completed_successfully
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     networks: [backend]
     read_only: false
     tmpfs:
@@ -210,7 +210,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "3000:8080"
+      - "127.0.0.1:3000:8080"
     volumes:
       - open_webui_data:/app/backend/data
     depends_on:
@@ -233,10 +233,13 @@ services:
     restart: unless-stopped
     <<: [*service-env, *default-dns, *default-security]
     command: ["--configFile=/etc/traefik/traefik.yml"]
-    ports: ["80:80", "443:443"]
+    ports:
+      - "${TRAEFIK_HTTP_BIND:-127.0.0.1}:80:80"
+      - "${TRAEFIK_HTTPS_BIND:-127.0.0.1}:443:443"
     volumes:
       - ./proxy/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./proxy/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./logs/traefik:/var/log/traefik
     depends_on:
       litellm:
         condition: service_healthy

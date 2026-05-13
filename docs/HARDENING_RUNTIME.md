@@ -34,22 +34,24 @@ Observability (optional profile)
 - `prometheus` + `grafana` (profile `with-observability`) for starter observability.
 
 ## Routing and Exposure Policy
-- Public entrypoint: only `reverse-proxy`.
+- Remote entrypoint: only `reverse-proxy` on Tailscale `443`.
 - Secure LiteLLM exposure: `https://$DOMAIN_NAME/v1/*`.
 - Secure Open WebUI exposure: `https://$DOMAIN_NAME/`.
-- Internal-only services: `litellm`, `open-webui`, `ollama`, `vllm-qwen-coder`, `openhands` on `local-ai-backend`.
+- Internal/loopback-only services: `litellm`, `open-webui`, `ollama`, `vllm-qwen-coder`, `openhands`; no direct remote backend ports.
 
 ## Tailscale-Compatible Routing
-Two supported patterns:
-1. **Serve/Funnel to Traefik**: map tailnet/FQDN to host `443` and keep Traefik TLS/routing controls.
-2. **Direct Tailnet to Traefik domain**: set DNS for `DOMAIN_NAME` to tailnet address and allow `443` inbound in ACLs.
+Supported Phase 3 pattern:
+1. Tailnet client reaches workstation `443`.
+2. Host firewall allows `443` only on `tailscale0`.
+3. Traefik routes `/v1/*` to LiteLLM and `/` to Open WebUI.
+4. Direct ports `3000`, `4000`, `11434`, and `8001` remain unreachable remotely.
 
-Recommended: keep all external access (including tailnet) through Traefik so rate limits/logging stay centralized.
+Keep all external access through Traefik so rate limits/logging stay centralized. Do not use Tailscale Funnel unless explicitly approved.
 
 ## API Key Enforcement Guidance
-- LiteLLM key enforcement remains authoritative using `LITELLM_MASTER_KEY`.
+- LiteLLM key enforcement remains authoritative; `LITELLM_MASTER_KEY` is admin/bootstrap only.
 - Clients must send `Authorization: Bearer <key>` for `/v1/*` endpoints.
-- Keep distinct keys per integration/user and rotate periodically.
+- Keep distinct per-user/per-integration keys and rotate periodically.
 - Do not embed master key in public browser clients; for Open WebUI, use server-side env only.
 
 ## Guardrails and Limits
