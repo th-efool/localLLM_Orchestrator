@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: up down logs restart clean reset-db health shell-litellm
+.PHONY: up down restart logs health verify clean
 
 up:
 	$(COMPOSE) up -d
@@ -8,23 +8,18 @@ up:
 down:
 	$(COMPOSE) down --remove-orphans
 
+restart:
+	$(COMPOSE) down --remove-orphans
+	$(COMPOSE) up -d
+
 logs:
 	$(COMPOSE) logs -f --tail=200
-
-restart:
-	$(COMPOSE) restart
-
-clean:
-	$(COMPOSE) down --remove-orphans --volumes
-
-reset-db:
-	$(COMPOSE) stop litellm litellm-migrate postgres
-	$(COMPOSE) rm -f litellm litellm-migrate postgres
-	docker volume rm -f postgres_data litellm_logs
-	$(COMPOSE) up -d postgres redis litellm-migrate litellm
 
 health:
 	./scripts/healthcheck.sh
 
-shell-litellm:
-	$(COMPOSE) exec litellm /bin/bash
+verify:
+	./scripts/verify.sh
+
+clean:
+	$(COMPOSE) down --remove-orphans --volumes

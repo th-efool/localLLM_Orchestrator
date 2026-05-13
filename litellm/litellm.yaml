@@ -1,28 +1,14 @@
 model_list:
-  - model_name: qwen32b
+  - model_name: "*"
     litellm_params:
-      model: ollama_chat/qwen3:32b
-      api_base: ${OLLAMA_API_BASE}
-
-  - model_name: deepseek_r1_32b
-    litellm_params:
-      model: ollama_chat/deepseek-r1:32b
-      api_base: ${OLLAMA_API_BASE}
-
-  - model_name: mistral_small
-    litellm_params:
-      model: ollama_chat/mistral-small
-      api_base: ${OLLAMA_API_BASE}
-
-  - model_name: mistral_abliterated_q8
-    litellm_params:
-      model: ollama_chat/hf.co/mradermacher/Mistral-Small-24B-Instruct-2501-abliterated-GGUF:Q8_0
+      model: "ollama_chat/*"
       api_base: ${OLLAMA_API_BASE}
 
 general_settings:
   master_key: ${LITELLM_MASTER_KEY}
   disable_spend_logs: true
   health_check_interval: 300
+  infer_model_from_keys: true
 
 router_settings:
   routing_strategy: simple-shuffle
