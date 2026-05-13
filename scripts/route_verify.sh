@@ -28,8 +28,8 @@ PY
 FAST_PICK="$(pick_model "$FAST_MODEL" mistral_small)"
 REASON_PICK="$(pick_model "$REASON_MODEL" qwen32b)"
 
-[ -n "$FAST_PICK" ] || { echo "No fast model available"; exit 1; }
-[ -n "$REASON_PICK" ] || { echo "No reasoning model available"; exit 1; }
+[ -n "$FAST_PICK" ] || { echo "No fast model available. Set FAST_MODEL or ensure phi4/mistral_small exists in /v1/models."; exit 1; }
+[ -n "$REASON_PICK" ] || { echo "No reasoning model available. Set REASON_MODEL or ensure qwen3.5:35b/qwen32b exists in /v1/models."; exit 1; }
 
 run_chat() {
   local model="$1"
