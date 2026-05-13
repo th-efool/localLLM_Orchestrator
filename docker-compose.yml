@@ -74,14 +74,15 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      OLLAMA_HOST: host.docker.internal
-      OLLAMA_PORT: 11434
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       LITELLM_CONFIG_PATH: /app/config/litellm.yaml
       ENABLE_DB_MIGRATIONS: ${ENABLE_DB_MIGRATIONS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./scripts/wait-for-dependencies.sh:/app/scripts/wait-for-dependencies.sh:ro
