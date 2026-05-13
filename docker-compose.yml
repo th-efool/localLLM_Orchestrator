@@ -28,6 +28,7 @@ services:
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       DATABASE_URL: ${DATABASE_URL}
       STORE_MODEL_IN_DB: "True"
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
     volumes:
       - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
       - ./data/litellm:/app/proxy_server_db

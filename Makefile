@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: start start-vllm start-ollama stop restart logs ps healthcheck validate
+.PHONY: start start-vllm start-ollama stop restart logs ps healthcheck validate api-verify
 
 start:
 	./scripts/bootstrap.sh
@@ -29,3 +29,6 @@ healthcheck:
 
 validate:
 	$(COMPOSE) config
+
+api-verify:
+	./scripts/api_verify.sh
