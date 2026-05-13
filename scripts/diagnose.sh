@@ -47,10 +47,10 @@ for c in localai-litellm localai-litellm-migrate localai-postgres localai-redis 
 done
 
 section generated-yaml
-shrun "docker exec localai-litellm sh -lc 'echo path=\${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml}; ls -l \${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml}; sed -e s#postgresql://\\([^:]*\\):[^@]*@#postgresql://\\1:<redacted>@# -e s#master_key:.*#master_key: \\\"<redacted>\\\"# \${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml}'"
+shrun "docker exec localai-litellm sh -lc 'echo path=\${LITELLM_GENERATED_CONFIG_PATH:-/app/config/litellm.yaml}; ls -l \${LITELLM_GENERATED_CONFIG_PATH:-/app/config/litellm.yaml}; sed -e s#postgresql://\\([^:]*\\):[^@]*@#postgresql://\\1:<redacted>@# -e s#master_key:.*#master_key: \\\"<redacted>\\\"# \${LITELLM_GENERATED_CONFIG_PATH:-/app/config/litellm.yaml}'"
 
 section mounted-config
-shrun "docker exec localai-litellm sh -lc 'ls -l /app/config /app/scripts; sed -n \"1,120p\" /app/config/litellm.yaml'"
+shrun "docker exec localai-litellm sh -lc 'ls -l /app/config /app/scripts; sed -n \"1,160p\" /app/config/litellm.yaml'"
 
 section container-smoke
 shrun "docker exec localai-litellm sh -lc 'id; pwd; command -v litellm; python3 - <<\"PY\"\nimport litellm, socket\nprint(\"litellm import ok\")\ns=socket.socket(); print(\"socket module ok\"); s.close()\nPY'"

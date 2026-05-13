@@ -119,7 +119,7 @@ services:
     <<: [*service-env, *default-dns, *default-security]
     user: "1000:1000" # Avoid root runtime where image supports it.
     entrypoint: ["/bin/bash", "-lc"]
-    command: "python /app/scripts/generate_litellm_config.py && exec litellm --config /tmp/litellm.generated.yaml --port 4000 --host 0.0.0.0"
+    command: ["/app/scripts/litellm_start.sh"]
     environment:
       DATABASE_URL: "${DATABASE_URL:?DATABASE_URL required}"
       REDIS_URL: "${REDIS_URL:?REDIS_URL required}"
@@ -128,7 +128,8 @@ services:
       OLLAMA_API_BASE: "${OLLAMA_API_BASE:?OLLAMA_API_BASE required}"
       VLLM_API_BASE: "${VLLM_API_BASE:-}"
       VLLM_API_KEY: "${VLLM_API_KEY:-EMPTY}"
-      LITELLM_GENERATED_CONFIG_PATH: /tmp/litellm.generated.yaml
+      LITELLM_GENERATED_CONFIG_PATH: /app/config/litellm.yaml
+      LITELLM_CONFIG_PATH: /app/config/litellm.yaml
       STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
       DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}" # Enforce prebuilt Prisma client artifacts.
       DISABLE_BACKGROUND_BUDGET_RESET: "${DISABLE_BACKGROUND_BUDGET_RESET:-true}"
@@ -136,7 +137,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
+      - ./litellm/litellm.yaml:/app/config-template/litellm.yaml:ro
       - ./scripts/generate_litellm_config.py:/app/scripts/generate_litellm_config.py:ro
       - ./scripts/ollama_network.py:/app/scripts/ollama_network.py:ro
       - ./scripts/litellm_start.sh:/app/scripts/litellm_start.sh:ro
@@ -153,7 +154,9 @@ services:
       - "4000:4000"
     networks: [backend]
     read_only: false
-    tmpfs: ["/tmp"]
+    tmpfs:
+      - /tmp
+      - /app/config:uid=1000,gid=1000,mode=0755
     healthcheck:
       test: ["CMD", "/bin/bash", "/app/scripts/litellm_healthcheck.sh"]
       interval: 15s
