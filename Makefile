@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: start start-vllm start-ollama stop restart logs ps healthcheck validate api-verify smoke-test route-verify logs-litellm logs-webui gpu-check
+.PHONY: start start-vllm start-ollama start-openhands stop stop-openhands restart logs logs-openhands ps healthcheck validate api-verify smoke-test route-verify verify-openhands logs-litellm logs-webui gpu-check
 
 start:
 	./scripts/bootstrap.sh
@@ -11,8 +11,14 @@ start-vllm:
 start-ollama:
 	./scripts/bootstrap.sh --profile with-ollama
 
+start-openhands:
+	./scripts/bootstrap.sh --profile with-openhands
+
 stop:
 	$(COMPOSE) down
+
+stop-openhands:
+	$(COMPOSE) --profile with-openhands stop openhands
 
 restart:
 	$(COMPOSE) down
@@ -20,6 +26,9 @@ restart:
 
 logs:
 	$(COMPOSE) logs -f --tail=200
+
+logs-openhands:
+	$(COMPOSE) --profile with-openhands logs -f --tail=200 openhands
 
 ps:
 	$(COMPOSE) ps
@@ -38,6 +47,9 @@ smoke-test:
 
 route-verify:
 	./scripts/route_verify.sh
+
+verify-openhands:
+	./scripts/openhands_verify.sh
 
 logs-litellm:
 	$(COMPOSE) logs -f --tail=200 litellm
