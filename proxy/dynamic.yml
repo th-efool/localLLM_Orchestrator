@@ -14,13 +14,6 @@ http:
       middlewares: [secure-headers, webui-rate-limit, request-size, inflight-webui]
       tls:
         certResolver: letsencrypt
-    tailscale-litellm:
-      rule: "Host(`${TAILSCALE_DOMAIN}`)"
-      service: litellm
-      entryPoints: [websecure]
-      middlewares: [secure-headers, litellm-rate-limit, request-size, inflight-litellm]
-      tls:
-        certResolver: letsencrypt
   services:
     litellm:
       loadBalancer:

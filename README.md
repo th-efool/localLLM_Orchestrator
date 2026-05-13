@@ -7,10 +7,16 @@ Open WebUI → LiteLLM → host-native Ollama plus optional GPU vLLM containers 
 For workstation-scale deployments with large local model stores, host-native Ollama reuses the existing host cache (including `qwen3:32b`, `deepseek-r1:32b`, `mistral-small`, and GGUF models), avoids duplicate Docker volume storage, eliminates model re-downloads, and reduces operational complexity.
 
 ## Required endpoints
+Local/offline:
 - Ollama (host): `http://localhost:11434`
-- LiteLLM (container exposed): `http://localhost:4000/v1`
-- Open WebUI (container exposed): `http://localhost:3000`
+- LiteLLM: `http://localhost:4000/v1`
+- Open WebUI: `http://localhost:3000`
 - vLLM OpenAI endpoint (optional profile): `http://localhost:8001/v1`
+
+Remote Phase 3:
+- Open WebUI: `https://$DOMAIN_NAME/`
+- LiteLLM: `https://$DOMAIN_NAME/v1`
+- Direct `3000`, `4000`, `11434`, and `8001` remote access: blocked
 
 ## Clean clone startup
 ```bash
@@ -55,3 +61,6 @@ curl -sS -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://localhost:4000/v1
 curl -fsS http://localhost:8001/v1/models        # when vLLM profile is running
 docker exec localai-vllm nvidia-smi              # when vLLM profile is running
 ```
+
+## Phase 3 remote setup
+See `docs/PHASE3_OWNER_CONFIG.md`, `docs/TAILSCALE_SETUP.md`, and `docs/REMOTE_RUNBOOK.md`.

@@ -2,14 +2,14 @@
 
 ## Security baseline
 - Keep all app ports loopback-bound (`127.0.0.1`) on host.
-- Expose only reverse proxy on `tailscale0` (not WAN).
+- Expose only reverse proxy `443` on `tailscale0` (not WAN).
 - Require auth on Open WebUI (`WEBUI_AUTH=True`).
-- Require API keys on LiteLLM; per-user keys, no shared key in clients.
+- Require API keys on LiteLLM; per-user/per-integration keys only, no shared master key in clients.
 - Store secrets in `.env` + host secret store; rotate quarterly or on incident.
 
 ## TLS termination + reverse proxy strategy
-- Add Traefik or Caddy as edge on host.
-- Terminate TLS at proxy using Tailscale certificates or internal CA certs.
+- Use Traefik as edge on host.
+- Terminate TLS at proxy using Tailscale certificates, internal CA certs, or approved DNS/cert flow.
 - Proxy routes:
   - `/v1/*` -> `litellm:4000`
   - `/` -> `open-webui:8080`
@@ -43,4 +43,11 @@
 ## Firewall assumptions
 - Host default deny inbound.
 - Allow inbound only on `tailscale0` proxy port (443).
-- Block direct access to 3000/4000/11434/8001 from LAN/WAN.
+- Block direct access to 3000/4000/11434/8001 from LAN/WAN and Tailnet.
+- Do not enable Tailscale Funnel for this stack without explicit approval.
+
+## Phase 3 owner actions
+- Configure tailnet groups/ACLs in `docs/TAILSCALE_SETUP.md`.
+- Configure `.env` values in `docs/PHASE3_OWNER_CONFIG.md`.
+- Issue per-user LiteLLM keys before remote API use.
+- Validate blocked direct ports from a remote Tailnet device.

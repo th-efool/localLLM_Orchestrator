@@ -33,6 +33,8 @@
 - `API_ACCESS.md`
 - `REMOTE_ACCESS.md`
 - `TAILSCALE_SETUP.md`
+- `PHASE3_OWNER_CONFIG.md`
+- `REMOTE_RUNBOOK.md`
 - `OPENHANDS_SETUP.md`
 
 ## Development

@@ -1,48 +1,92 @@
 # Remote Access Architecture
 
-## Architecture
-- Workstation runs Docker services locally.
-- Services exposed on host loopback only.
-- Tailscale provides private encrypted remote transport.
-- No public ingress, no reverse proxy, no Kubernetes.
+## Phase 3 target
+- Remote transport: Tailscale only.
+- Public internet ingress: none.
+- Remote entrypoint: Traefik on `443` via `tailscale0`.
+- API path: remote client -> Tailscale -> Traefik -> LiteLLM `/v1`.
+- Web path: remote browser -> Tailscale -> Traefik -> Open WebUI.
+- Backend services: no direct remote access.
+- Local/offline mode: loopback endpoints continue without Tailscale.
 
-## Recommended host port mappings
-- Open WebUI: `127.0.0.1:3000 -> open-webui:8080`
-- LiteLLM: `127.0.0.1:4000 -> litellm:4000`
-- Ollama (optional host exposure): `127.0.0.1:11434 -> ollama:11434`
-- vLLM (optional): `127.0.0.1:8001 -> vllm-qwen-coder:8000`
+## Exposure policy
+Allowed remote surface:
+- `https://$DOMAIN_NAME/` -> Open WebUI.
+- `https://$DOMAIN_NAME/v1/*` -> LiteLLM.
+- `https://$DOMAIN_NAME/health/*` -> LiteLLM health.
 
-## Docker Compose integration guidance
-Update `docker-compose.yml` `ports:` entries to explicit loopback bindings (`127.0.0.1:...`) for any service that should not be LAN/WAN exposed.
+Blocked remote surface:
+- `3000` Open WebUI direct.
+- `4000` LiteLLM direct.
+- `11434` Ollama direct.
+- `8001` vLLM direct.
+- Docker backend network.
+- Tailscale Funnel unless explicitly approved.
 
-## Device access workflows
-### Remote laptop -> Open WebUI
-1. Connect laptop to tailnet.
-2. Start tunnel:
-   ```bash
-   ssh -L 3000:127.0.0.1:3000 <user>@<workstation>
-   ```
-3. Open `http://127.0.0.1:3000` in browser.
+## Modes
+### Local/offline mode
+Use when single user or no network.
 
-### Remote laptop -> LiteLLM API
-1. Connect to tailnet.
-2. Tunnel API port:
-   ```bash
-   ssh -L 4000:127.0.0.1:4000 <user>@<workstation>
-   ```
-3. Use `http://127.0.0.1:4000/v1` as OpenAI-compatible base URL.
+Config:
+```bash
+TRAEFIK_HTTP_BIND=127.0.0.1
+TRAEFIK_HTTPS_BIND=127.0.0.1
+DOMAIN_NAME=localhost
+TAILSCALE_DOMAIN=localhost
+```
+
+Endpoints:
+- Open WebUI: `http://127.0.0.1:3000` or `https://localhost/`.
+- LiteLLM: `http://127.0.0.1:4000/v1` or `https://localhost/v1`.
+
+### Remote team mode
+Use when team members need private access.
+
+Config:
+```bash
+TRAEFIK_HTTP_BIND=127.0.0.1
+TRAEFIK_HTTPS_BIND=<workstation-tailnet-ip>
+DOMAIN_NAME=<workstation-tailnet-dns-name>
+TAILSCALE_DOMAIN=<workstation-tailnet-dns-name>
+```
+
+Endpoints:
+- Open WebUI: `https://$DOMAIN_NAME/`.
+- LiteLLM: `https://$DOMAIN_NAME/v1`.
+
+## Gateway-first rule
+- Remote users never connect to app ports directly.
+- All remote HTTP traffic enters Traefik first.
+- Traefik applies TLS, headers, body-size limits, rate limits, in-flight limits, and access logs.
+- LiteLLM remains canonical API gateway for all tools and agents.
+
+## Docker binding policy
+- `litellm`: `127.0.0.1:4000:4000` only.
+- `open-webui`: `127.0.0.1:3000:8080` only.
+- `vllm`: `127.0.0.1:8001:8000` only, optional profile.
+- `reverse-proxy`: `TRAEFIK_HTTPS_BIND:443:443`.
 
 ## Remote IDE workflows
 ### VS Code SSH
-- Use Tailscale hostname in Remote-SSH.
-- Run local stack commands (`make start`, `make logs`) on workstation via remote terminal.
-- Keep API/web access via tunnels from IDE machine.
+- Connect to workstation using Tailscale SSH.
+- Run repo commands on workstation terminal.
+- Use API/web through `https://$DOMAIN_NAME`.
 
 ### JetBrains Gateway / terminal-only
 - Connect over Tailscale SSH.
-- Forward needed local ports (`3000`, `4000`) only.
+- Keep app access through Traefik URL.
+- Use SSH tunnels only for emergency local debugging.
 
-## Endpoint validation helpers
-- `./scripts/endpoint_validate.sh` — checks expected local endpoints.
-- `./scripts/remote_healthcheck.sh` — host + Docker + HTTP sanity.
-- `./scripts/remote_api_verify.sh` — OpenAI-compatible API verification.
+## Validation helpers
+- `./scripts/remote_healthcheck.sh https://$DOMAIN_NAME`.
+- `./scripts/remote_api_verify.sh https://$DOMAIN_NAME/v1 <user-key> <model>`.
+- `./scripts/validate_hardening.sh`.
+
+## Rollback to local-only
+```bash
+TRAEFIK_HTTP_BIND=127.0.0.1
+TRAEFIK_HTTPS_BIND=127.0.0.1
+DOMAIN_NAME=localhost
+TAILSCALE_DOMAIN=localhost
+docker compose up -d
+```
