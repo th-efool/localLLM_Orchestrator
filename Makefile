@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: start start-vllm start-ollama start-openhands stop stop-openhands restart logs logs-openhands ps healthcheck validate api-verify smoke-test route-verify verify-openhands logs-litellm logs-webui gpu-check
+.PHONY: start start-vllm start-ollama start-openhands stop stop-openhands restart logs logs-openhands ps healthcheck validate api-verify smoke-test route-verify verify-openhands logs-litellm logs-webui gpu-check remote-healthcheck remote-api-verify endpoint-validate
 
 start:
 	./scripts/bootstrap.sh
@@ -59,3 +59,12 @@ logs-webui:
 
 gpu-check:
 	docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi
+
+remote-healthcheck:
+	./scripts/remote_healthcheck.sh
+
+remote-api-verify:
+	./scripts/remote_api_verify.sh
+
+endpoint-validate:
+	./scripts/endpoint_validate.sh
