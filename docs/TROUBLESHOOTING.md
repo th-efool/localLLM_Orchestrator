@@ -1,40 +1,26 @@
-# TROUBLESHOOTING
+# Troubleshooting
 
-## WSL networking issues
-- Symptom: LiteLLM cannot reach Ollama on host.
-- Check `OLLAMA_API_BASE=http://host.docker.internal:11434`.
-- Verify `curl http://localhost:11434/api/tags` on host.
+## Fast checks
+- Run `make health` for full dependency and endpoint diagnostics.
+- Run `docker compose ps` and confirm all services are `healthy`.
+- Run `docker compose logs -f litellm` for boot blockers.
 
-## Docker GPU issues
-- Symptom: model load failures or CPU fallback.
-- Run `make gpu-check`.
-- Confirm NVIDIA Container Toolkit / Docker Desktop GPU integration.
+## Common failures
 
-## LiteLLM routing failures
-- Symptom: `model_not_found` or 500 on completion.
-- Check `/v1/models` and exact model IDs.
-- Run `make route-verify` and `make api-verify`.
+### Postgres or Redis unhealthy
+- Verify env values match `.env.example`.
+- Ensure named volumes are writable: `docker volume inspect postgres_data redis_data`.
+- Restart only infra: `docker compose restart postgres redis`.
 
-## OpenAI API compatibility issues
-- Symptom: client rejects base URL or auth.
-- Ensure base URL includes `/v1` and key matches `LITELLM_MASTER_KEY`.
+### LiteLLM stuck in starting
+- Check migration gate container result: `docker compose ps litellm-migrate`.
+- Validate config mount path exists: `litellm/litellm.yaml`.
+- Confirm no schema drift flags are overridden (`DISABLE_PRISMA_GENERATE=true`, `LITELLM_DISABLE_AUTO_MIGRATIONS=true`).
 
-## Ollama connectivity issues
-- Symptom: connection refused/timeouts.
-- Host mode: `OLLAMA_API_BASE=http://host.docker.internal:11434`
-- Container mode: `OLLAMA_API_BASE=http://ollama:11434` with `make start-ollama`
+### DNS or endpoint intermittency
+- Compose uses dual resolvers (`1.1.1.1`, `8.8.8.8`) for resilience.
+- Retry after Docker/WSL restart: `make down && make up`.
 
-## Model loading issues
-- Symptom: long hangs, load failures.
-- Validate model exists in Ollama: `ollama list`.
-- Reduce active loaded models (`OLLAMA_MAX_LOADED_MODELS`).
-
-## VRAM exhaustion behavior
-- Symptoms: OOM, container restarts, extreme latency.
-- Lower parallelism: `OLLAMA_NUM_PARALLEL=1`.
-- Use smaller/faster model route.
-
-## Container restart debugging
-- `make ps`
-- `make logs-litellm`
-- `docker inspect litellm --format '{{.State.RestartCount}}'`
+### Reset to clean state
+- Full reset: `make clean && make up`.
+- DB-only reset: `make reset-db`.

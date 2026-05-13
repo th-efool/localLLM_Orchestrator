@@ -1,70 +1,30 @@
 COMPOSE ?= docker compose
 
-.PHONY: start start-vllm start-ollama start-openhands stop stop-openhands restart logs logs-openhands ps healthcheck validate api-verify smoke-test route-verify verify-openhands logs-litellm logs-webui gpu-check remote-healthcheck remote-api-verify endpoint-validate
+.PHONY: up down logs restart clean reset-db health shell-litellm
 
-start:
-	./scripts/bootstrap.sh
+up:
+	$(COMPOSE) up -d
 
-start-vllm:
-	./scripts/bootstrap.sh --profile with-vllm
-
-start-ollama:
-	./scripts/bootstrap.sh --profile with-ollama
-
-start-openhands:
-	./scripts/bootstrap.sh --profile with-openhands
-
-stop:
-	$(COMPOSE) down
-
-stop-openhands:
-	$(COMPOSE) --profile with-openhands stop openhands
-
-restart:
-	$(COMPOSE) down
-	./scripts/bootstrap.sh
+down:
+	$(COMPOSE) down --remove-orphans
 
 logs:
 	$(COMPOSE) logs -f --tail=200
 
-logs-openhands:
-	$(COMPOSE) --profile with-openhands logs -f --tail=200 openhands
+restart:
+	$(COMPOSE) restart
 
-ps:
-	$(COMPOSE) ps
+clean:
+	$(COMPOSE) down --remove-orphans --volumes
 
-healthcheck:
+reset-db:
+	$(COMPOSE) stop litellm litellm-migrate postgres
+	$(COMPOSE) rm -f litellm litellm-migrate postgres
+	docker volume rm -f postgres_data litellm_logs
+	$(COMPOSE) up -d postgres redis ollama litellm-migrate litellm
+
+health:
 	./scripts/healthcheck.sh
 
-validate:
-	$(COMPOSE) config
-
-api-verify:
-	./scripts/api_verify.sh
-
-smoke-test:
-	./scripts/smoke_test.sh
-
-route-verify:
-	./scripts/route_verify.sh
-
-verify-openhands:
-	./scripts/openhands_verify.sh
-
-logs-litellm:
-	$(COMPOSE) logs -f --tail=200 litellm
-
-logs-webui:
-	$(COMPOSE) logs -f --tail=200 open-webui
-
-gpu-check:
-	docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi
-
-remote-healthcheck:
-	./scripts/remote_healthcheck.sh
-
-remote-api-verify:
-	./scripts/remote_api_verify.sh
-
-endpoint-validate:
-	./scripts/endpoint_validate.sh
+shell-litellm:
+	$(COMPOSE) exec litellm /bin/bash
