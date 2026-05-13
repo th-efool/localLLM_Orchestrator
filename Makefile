@@ -21,7 +21,7 @@ reset-db:
 	$(COMPOSE) stop litellm litellm-migrate postgres
 	$(COMPOSE) rm -f litellm litellm-migrate postgres
 	docker volume rm -f postgres_data litellm_logs
-	$(COMPOSE) up -d postgres redis ollama litellm-migrate litellm
+	$(COMPOSE) up -d postgres redis litellm-migrate litellm
 
 health:
 	./scripts/healthcheck.sh
