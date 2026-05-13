@@ -1,0 +1,131 @@
+name: local-ai-stack
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-nvidia-gpu: &nvidia-gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+    command: ["--config", "/app/config/litellm.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    ports:
+      - "4000:4000"
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      STORE_MODEL_IN_DB: "True"
+    volumes:
+      - ./litellm/litellm.yaml:/app/config/litellm.yaml:ro
+      - ./data/litellm:/app/proxy_server_db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      vllm-qwen-coder:
+        condition: service_started
+        required: false
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles: ["with-ollama"]
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-24h}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ./data/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    <<: *nvidia-gpu
+    logging: *default-logging
+
+  vllm-qwen-coder:
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    profiles: ["with-vllm"]
+    ports:
+      - "8001:8000"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HUGGING_FACE_HUB_TOKEN:-}
+      VLLM_LOGGING_LEVEL: INFO
+    volumes:
+      - ./data/huggingface:/root/.cache/huggingface
+    command:
+      - --model
+      - Qwen/Qwen2.5-Coder-32B-Instruct
+      - --served-model-name
+      - qwen2.5-coder-32b
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --gpu-memory-utilization
+      - "0.92"
+      - --max-model-len
+      - "32768"
+      - --tensor-parallel-size
+      - "1"
+      - --dtype
+      - auto
+      - --enable-prefix-caching
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    <<: *nvidia-gpu
+    logging: *default-logging
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      WEBUI_AUTH: "False"
+      ENABLE_OLLAMA_API: "False"
+    volumes:
+      - ./data/open-webui:/app/backend/data
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    logging: *default-logging
+
+networks:
+  default:
+    name: local-ai-net
