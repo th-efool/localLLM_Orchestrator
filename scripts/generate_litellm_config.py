@@ -8,7 +8,7 @@ import urllib.request
 
 from ollama_network import discover as discover_ollama
 
-OUT = os.getenv("LITELLM_GENERATED_CONFIG_PATH", "/tmp/litellm.generated.yaml")
+OUT = os.getenv("LITELLM_GENERATED_CONFIG_PATH", "/app/config/litellm.yaml")
 OLLAMA = os.getenv("OLLAMA_API_BASE", "http://host.docker.internal:11434").rstrip("/")
 VLLM = os.getenv("VLLM_API_BASE", "").rstrip("/")
 VLLM_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
@@ -17,6 +17,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 RETRIES = int(os.getenv("MODEL_DISCOVERY_RETRIES", "20"))
 SLEEP = float(os.getenv("MODEL_DISCOVERY_SLEEP", "2"))
 
+
+print("[litellm-config] config generation start")
+print("[litellm-config] target config path:", OUT)
+print("[litellm-config] OLLAMA_API_BASE:", OLLAMA)
+print("[litellm-config] VLLM_API_BASE:", VLLM or "disabled")
 
 def fetch_json(url, headers=None, required=False):
     last = None
@@ -107,8 +112,11 @@ for mid in vllm_models:
 if not routes:
     raise SystemExit("no backend models discovered")
 
+wildcard = ("*", "ollama_chat/*", OLLAMA, None, "ollama-wildcard")
+routes_with_wildcard = routes + [wildcard]
+
 lines = ["model_list:"]
-for name, model, api_base, api_key, src in routes:
+for name, model, api_base, api_key, src in routes_with_wildcard:
     lines += [
         f"  - model_name: {q(name)}",
         "    litellm_params:",
@@ -149,7 +157,8 @@ print("[litellm-config] generated config path:", OUT)
 print("[litellm-config] discovered Ollama models:", ", ".join(ollama_models) or "none")
 print("[litellm-config] active vLLM models:", ", ".join(vllm_models) or "none")
 print("[litellm-config] generated LiteLLM routes:")
-for name, model, api_base, _, src in routes:
+for name, model, api_base, _, src in routes_with_wildcard:
     print(f"[litellm-config]   {name} -> {model} @ {api_base} ({src})")
 print("[litellm-config] exposed OpenAI-compatible model IDs:", ", ".join(name for name, *_ in routes))
+print("[litellm-config] wildcard passthrough enabled: * -> ollama_chat/*")
 print(f"[litellm-config] wrote {OUT}")

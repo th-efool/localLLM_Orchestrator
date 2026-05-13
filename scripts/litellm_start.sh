@@ -7,16 +7,16 @@ redact() {
   python3 -c 'import re,sys; s=sys.stdin.read(); s=re.sub(r"(master_key:\\s*)\"?[^\"\n]+\"?", r"\\1\"<redacted>\"", s); s=re.sub(r"(postgresql://[^:]+:)[^@\\s]+", r"\\1<redacted>", s); print(s, end="")'
 }
 
-CONFIG_PATH="${LITELLM_GENERATED_CONFIG_PATH:-/tmp/litellm.generated.yaml}"
-BASE_CONFIG="/app/config/litellm.yaml"
-CMD=(litellm --config "$CONFIG_PATH" --port 4000 --host 0.0.0.0)
+CONFIG_PATH="${LITELLM_GENERATED_CONFIG_PATH:-/app/config/litellm.yaml}"
+BASE_CONFIG="/app/config-template/litellm.yaml"
+CMD=(litellm --config "$CONFIG_PATH" --host 0.0.0.0 --port 4000)
 
 trap 'rc=$?; echo "[litellm-start] failed at line $LINENO rc=$rc" >&2; exit $rc' ERR
 
-log "phase=env"
-log "effective command: ${CMD[*]}"
+log "phase=startup"
+log "final executed command: ${CMD[*]}"
 log "generated config path: $CONFIG_PATH"
-log "mounted base config path: $BASE_CONFIG"
+log "template config path: $BASE_CONFIG"
 log "workdir: $(pwd)"
 log "user: $(id)"
 log "DATABASE_URL host: $(python3 - <<'PY'
@@ -37,7 +37,7 @@ log "VLLM_API_BASE: ${VLLM_API_BASE:-disabled}"
 for v in DATABASE_URL REDIS_URL LITELLM_MASTER_KEY LITELLM_SALT_KEY OLLAMA_API_BASE; do
   [[ -n "${!v:-}" ]] || fail "missing env: $v"
 done
-[[ -r "$BASE_CONFIG" ]] || fail "base config not readable: $BASE_CONFIG"
+[[ -r "$BASE_CONFIG" ]] || fail "template config not readable: $BASE_CONFIG"
 command -v python3 >/dev/null || fail "python3 missing"
 command -v litellm >/dev/null || fail "litellm executable missing"
 
@@ -64,7 +64,7 @@ PY
 log "phase=ollama-network"
 python3 /app/scripts/ollama_network.py --check
 
-log "phase=generate-config"
+log "config generation start"
 python3 /app/scripts/generate_litellm_config.py
 [[ -s "$CONFIG_PATH" ]] || fail "generated config empty/missing: $CONFIG_PATH"
 
@@ -102,11 +102,35 @@ for i, item in enumerate(models):
 print(f'[litellm-start] config syntax ok: {len(models)} routes')
 PY
 
+log "generated config path: $CONFIG_PATH"
 log "phase=print-config"
 cat "$CONFIG_PATH" | redact
 
 log "phase=litellm-cli-smoke"
 litellm --config "$CONFIG_PATH" --test
 
-log "phase=exec"
-exec "${CMD[@]}"
+log "LiteLLM bind startup: host=0.0.0.0 port=4000"
+log "server ready state: starting"
+"${CMD[@]}" &
+pid=$!
+trap 'log "received stop signal; forwarding to LiteLLM pid=$pid"; kill -TERM "$pid" 2>/dev/null || true; wait "$pid"' TERM INT
+ready=0
+for i in $(seq 1 120); do
+  if python3 - <<'PY' >/dev/null 2>&1
+import urllib.request
+with urllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=2) as r:
+    raise SystemExit(0 if 200 <= r.status < 300 else 1)
+PY
+  then
+    log "server ready state: ready"
+    ready=1
+    break
+  fi
+  if ! kill -0 "$pid" 2>/dev/null; then
+    wait "$pid"
+    exit $?
+  fi
+  sleep 1
+done
+[[ "$ready" == 1 ]] || log "server ready state: not-ready-yet; healthcheck continues"
+wait "$pid"
