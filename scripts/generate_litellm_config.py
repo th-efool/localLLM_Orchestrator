@@ -132,7 +132,11 @@ lines += [
     "",
     "litellm_settings:",
     f"  master_key: {q(MASTER_KEY)}",
-    f"  database_url: {q(DATABASE_URL)}",
+]
+if DATABASE_URL:
+    lines.append(f"  database_url: {q(DATABASE_URL)}")
+
+lines += [
     "",
     "general_settings:",
     f"  master_key: {q(MASTER_KEY)}",

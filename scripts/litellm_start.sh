@@ -34,7 +34,7 @@ PY
 log "OLLAMA_API_BASE: ${OLLAMA_API_BASE:-missing}"
 log "VLLM_API_BASE: ${VLLM_API_BASE:-disabled}"
 
-for v in DATABASE_URL REDIS_URL LITELLM_MASTER_KEY LITELLM_SALT_KEY OLLAMA_API_BASE; do
+for v in REDIS_URL LITELLM_MASTER_KEY LITELLM_SALT_KEY OLLAMA_API_BASE; do
   [[ -n "${!v:-}" ]] || fail "missing env: $v"
 done
 [[ -r "$BASE_CONFIG" ]] || fail "template config not readable: $BASE_CONFIG"
@@ -105,6 +105,10 @@ PY
 log "generated config path: $CONFIG_PATH"
 log "phase=print-config"
 cat "$CONFIG_PATH" | redact
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  unset DATABASE_URL
+fi
 
 log "LiteLLM bind startup: host=0.0.0.0 port=4000"
 log "server ready state: starting"

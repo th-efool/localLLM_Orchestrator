@@ -13,9 +13,9 @@ entryPoints:
     address: ":443"
     transport:
       respondingTimeouts:
-        readTimeout: ${TRAEFIK_READ_TIMEOUT:-30s}
-        writeTimeout: ${TRAEFIK_WRITE_TIMEOUT:-120s}
-        idleTimeout: ${TRAEFIK_IDLE_TIMEOUT:-120s}
+        readTimeout: 30s
+        writeTimeout: 120s
+        idleTimeout: 120s
 providers:
   file:
     filename: /etc/traefik/dynamic.yml
@@ -29,7 +29,7 @@ accessLog:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: ${ACME_EMAIL:-admin@localhost}
+      email: admin@localhost
       storage: /acme/acme.json
       httpChallenge:
         entryPoint: web

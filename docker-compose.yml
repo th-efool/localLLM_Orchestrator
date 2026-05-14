@@ -90,7 +90,7 @@ services:
       LITELLM_SALT_KEY: "${LITELLM_SALT_KEY:?LITELLM_SALT_KEY required}"
       LITELLM_CONFIG_PATH: /tmp/litellm.generated.yaml
       ENABLE_DB_MIGRATIONS: "${ENABLE_DB_MIGRATIONS:-true}"
-      STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
+      STORE_MODEL_IN_DB: "${LITELLM_RUNTIME_STORE_MODEL_IN_DB:-False}"
       DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}"
       LITELLM_DISABLE_AUTO_MIGRATIONS: "false"
     extra_hosts:
@@ -121,7 +121,7 @@ services:
     entrypoint: ["/bin/bash", "-lc"]
     command: ["/app/scripts/litellm_start.sh"]
     environment:
-      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL required}"
+      DATABASE_URL: "${LITELLM_RUNTIME_DATABASE_URL:-}"
       REDIS_URL: "${REDIS_URL:?REDIS_URL required}"
       LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY required}"
       LITELLM_SALT_KEY: "${LITELLM_SALT_KEY:?LITELLM_SALT_KEY required}"
@@ -132,8 +132,10 @@ services:
       LITELLM_CONFIG_PATH: /app/config/litellm.yaml
       STORE_MODEL_IN_DB: "${STORE_MODEL_IN_DB:-True}"
       DISABLE_PRISMA_GENERATE: "${DISABLE_PRISMA_GENERATE:-true}" # Enforce prebuilt Prisma client artifacts.
+      DISABLE_SCHEMA_UPDATE: "${DISABLE_SCHEMA_UPDATE:-true}" # Prevent app startup from mutating schema.
       DISABLE_BACKGROUND_BUDGET_RESET: "${DISABLE_BACKGROUND_BUDGET_RESET:-true}"
       LITELLM_DISABLE_AUTO_MIGRATIONS: "${LITELLM_DISABLE_AUTO_MIGRATIONS:-true}" # Prevent app startup from mutating schema.
+      LITELLM_MIGRATION_DIR: /tmp/litellm_migrations
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -155,6 +157,8 @@ services:
     networks: [backend]
     read_only: false
     tmpfs:
+      - /.cache:uid=1000,gid=1000,mode=0755,exec
+      - /.npm:uid=1000,gid=1000,mode=0755
       - /tmp
       - /app/config:uid=1000,gid=1000,mode=0755
     healthcheck:
@@ -210,7 +214,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "127.0.0.1:3000:8080"
+      - "127.0.0.1:${OPEN_WEBUI_PORT:-3000}:8080"
     volumes:
       - open_webui_data:/app/backend/data
     depends_on:
@@ -219,7 +223,7 @@ services:
     networks: [backend, edge]
     read_only: false
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health >/dev/null && wget -qO- http://host.docker.internal:11434/api/tags >/dev/null && wget --header="Authorization: Bearer $$OPENAI_API_KEY" -qO- http://litellm:4000/v1/models >/dev/null']
+      test: ["CMD-SHELL", "python3 - <<'PY'\nimport os, urllib.request\nchecks = [\n    ('http://127.0.0.1:8080/health', {}),\n    ('http://host.docker.internal:11434/api/tags', {}),\n    ('http://litellm:4000/v1/models', {'Authorization': f'Bearer {os.environ[\"OPENAI_API_KEY\"]}'}),\n]\nfor url, headers in checks:\n    req = urllib.request.Request(url, headers=headers)\n    with urllib.request.urlopen(req, timeout=5) as r:\n        if r.status >= 400:\n            raise SystemExit(f'{url} returned {r.status}')\nPY"]
       interval: 20s
       timeout: 10s
       retries: 12
