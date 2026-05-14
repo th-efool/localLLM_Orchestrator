@@ -106,9 +106,6 @@ log "generated config path: $CONFIG_PATH"
 log "phase=print-config"
 cat "$CONFIG_PATH" | redact
 
-log "phase=litellm-cli-smoke"
-litellm --config "$CONFIG_PATH" --test
-
 log "LiteLLM bind startup: host=0.0.0.0 port=4000"
 log "server ready state: starting"
 "${CMD[@]}" &

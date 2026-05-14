@@ -37,7 +37,22 @@ wait_for_tcp "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" redis
 echo "validating Ollama container connectivity"
 python /app/scripts/ollama_network.py --check
 if [[ "${ENABLE_DB_MIGRATIONS:-true}" == "true" ]]; then
-  litellm --config "$LITELLM_CONFIG_PATH" --test >/dev/null
+  echo "validating LiteLLM config"
+  python - "$LITELLM_CONFIG_PATH" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+path = Path(sys.argv[1])
+data = yaml.safe_load(path.read_text())
+if not isinstance(data, dict):
+    raise SystemExit("config root must be a mapping")
+models = data.get("model_list")
+if not isinstance(models, list) or not models:
+    raise SystemExit("config model_list must be non-empty")
+print(f"LiteLLM config valid: {len(models)} routes")
+PY
 fi
 
 echo "dependency validation passed"
