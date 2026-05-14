@@ -29,7 +29,7 @@ Example prompt (deep pass):
 
 ## Repo-aware local workflow
 - Scope context before prompting:
-  - architecture files (`ARCHITECTURE.md`, `DECISIONS.md`)
+  - architecture files (`../architecture/ARCHITECTURE.md`, `../architecture/DECISIONS.md`)
   - target module files only
   - recent diffs/logs
 - Avoid dumping entire repo in one prompt.

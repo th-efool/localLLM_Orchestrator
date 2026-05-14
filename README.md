@@ -63,4 +63,4 @@ docker exec localai-vllm nvidia-smi              # when vLLM profile is running
 ```
 
 ## Phase 3 remote setup
-See `docs/PHASE3_OWNER_CONFIG.md`, `docs/TAILSCALE_SETUP.md`, and `docs/REMOTE_RUNBOOK.md`.
+See `docs/access/REMOTE_ACCESS.md`.

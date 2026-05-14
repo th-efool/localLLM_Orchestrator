@@ -47,7 +47,7 @@
 - Do not enable Tailscale Funnel for this stack without explicit approval.
 
 ## Phase 3 owner actions
-- Configure tailnet groups/ACLs in `docs/TAILSCALE_SETUP.md`.
-- Configure `.env` values in `docs/PHASE3_OWNER_CONFIG.md`.
+- Configure tailnet groups/ACLs in `../access/REMOTE_ACCESS.md`.
+- Configure `.env` values in `../access/REMOTE_ACCESS.md`.
 - Issue per-user LiteLLM keys before remote API use.
 - Validate blocked direct ports from a remote Tailnet device.
